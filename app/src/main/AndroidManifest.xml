@@ -6,10 +6,6 @@
         android:label="Setup"
         android:theme="@android:style/Theme.Translucent.NoTitleBar">
 
-        <!--
-            DeviceAdminReceiver — required entry point for DPC provisioning.
-            onProfileProvisioningComplete fires after QR enrollment succeeds.
-        -->
         <receiver
             android:name=".AdminReceiver"
             android:exported="true"
@@ -23,13 +19,21 @@
             </intent-filter>
         </receiver>
 
-        <!-- Transparent activity that completes setup then goes to home screen -->
+        <!--
+            ACTION_ADMIN_POLICY_COMPLIANCE is REQUIRED on Android 11+.
+            Provisioning immediately fails if this activity is not declared.
+        -->
         <activity
             android:name=".SetupActivity"
-            android:exported="false"
+            android:exported="true"
             android:noHistory="true"
             android:excludeFromRecents="true"
-            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
+            android:theme="@android:style/Theme.Translucent.NoTitleBar">
+            <intent-filter>
+                <action android:name="android.app.action.ADMIN_POLICY_COMPLIANCE" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity>
 
     </application>
 
