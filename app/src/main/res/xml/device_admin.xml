@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Minimal device admin declaration.
+    Device Owner has all policies implicitly — no need to list them here.
+-->
+<device-admin />
