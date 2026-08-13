@@ -1,0 +1,22 @@
+# Copy to /etc/systemd/system/autosetup-web.service on the VPS, then:
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now autosetup-web
+
+[Unit]
+Description=Autosetup provisioning web server
+After=network.target
+
+[Service]
+Type=simple
+User=autosetup
+WorkingDirectory=/opt/autosetup-web/server
+EnvironmentFile=/etc/autosetup/.env
+ExecStart=/usr/bin/node dist/index.js
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+ProtectSystem=strict
+ReadWritePaths=/opt/autosetup-web/server/data
+
+[Install]
+WantedBy=multi-user.target

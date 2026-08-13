@@ -1,0 +1,16 @@
+# AutoSetup DPC v2
+
+Minimal DPC for fully managed QR provisioning. Android 12+ integrated
+provisioning is handled through `GET_PROVISIONING_MODE` and
+`ADMIN_POLICY_COMPLIANCE`. The app deliberately remains Device Owner after
+enrollment; removing the owner during provisioning makes the flow unreliable.
+
+Build with the Gradle wrapper from the original project:
+
+```sh
+../AutoSetupDPC/gradlew -p AutoSetupDPC assembleRelease \
+  -PAUTOS_SETUP_KEYSTORE=/absolute/path/to/autosetup.keystore \
+  -PAUTOS_SETUP_STORE_PASSWORD=... \
+  -PAUTOS_SETUP_KEY_ALIAS=... \
+  -PAUTOS_SETUP_KEY_PASSWORD=...
+```

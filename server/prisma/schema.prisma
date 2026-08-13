@@ -1,0 +1,69 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model StaffUser {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  role         String   @default("staff")
+  createdAt    DateTime @default(now())
+
+  sessions EnrollmentSession[]
+}
+
+// SQLite has no native enum support in Prisma; status/type are validated
+// application-side against the string unions in src/types.ts.
+model EnrollmentSession {
+  id              String        @id @default(cuid())
+  token           String        @unique
+  status          String        @default("PENDING")
+
+  wifiSsid         String?
+  wifiPassword     String?
+  wifiSecurityType String?
+  locale           String        @default("vi_VN")
+  timezone         String        @default("Asia/Ho_Chi_Minh")
+  note             String?
+
+  createdByStaffId String?
+  createdBy         StaffUser? @relation(fields: [createdByStaffId], references: [id])
+
+  createdAt   DateTime  @default(now())
+  expiresAt   DateTime
+  enrolledAt  DateTime?
+
+  deviceModel     String?
+  androidRelease  String?
+  apkVersion      String?
+
+  events EnrollmentEvent[]
+
+  @@index([status])
+  @@index([expiresAt])
+}
+
+model EnrollmentEvent {
+  id          String   @id @default(cuid())
+  sessionId   String
+  session     EnrollmentSession @relation(fields: [sessionId], references: [id])
+  type        String
+  payloadJson String?
+  createdAt   DateTime @default(now())
+
+  @@index([sessionId])
+}
+
+model ReleaseApk {
+  id               String   @id @default(cuid())
+  version          String   @unique
+  filename         String
+  sha256Base64Url  String
+  isActive         Boolean  @default(false)
+  uploadedAt       DateTime @default(now())
+}

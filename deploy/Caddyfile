@@ -1,0 +1,16 @@
+# Reverse proxy + automatic HTTPS (Let's Encrypt) for the provisioning web app.
+# Copy to /etc/caddy/Caddyfile on the VPS, replace the domain, then:
+#   sudo systemctl reload caddy
+
+provisioning.example.com {
+    reverse_proxy 127.0.0.1:3000
+
+    encode gzip
+
+    # The DPC APK and callback endpoint must stay reachable without auth —
+    # devices in Setup Wizard hit these directly. Everything else (the
+    # dashboard) is protected by the app's own session-based staff login.
+    log {
+        output file /var/log/caddy/provisioning-access.log
+    }
+}
