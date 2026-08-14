@@ -20,10 +20,19 @@ class HeartbeatAlarmReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         val (token, heartbeatUrl) = HeartbeatPrefs.load(context) ?: return
 
-        val battery = readBatteryLevel(context)
-        CallbackClient.sendHeartbeat(heartbeatUrl, token, battery)
-
-        schedule(context, INTERVAL_MS)
+        // goAsync() keeps the process alive past onReceive() returning — without
+        // it, Android is free to kill the process the instant this method
+        // returns, before a background Thread's network request completes.
+        val pendingResult = goAsync()
+        Thread {
+            try {
+                val battery = readBatteryLevel(context)
+                CallbackClient.sendHeartbeatBlocking(heartbeatUrl, token, battery)
+            } finally {
+                schedule(context, INTERVAL_MS)
+                pendingResult.finish()
+            }
+        }.start()
     }
 
     private fun readBatteryLevel(context: Context): Int? {

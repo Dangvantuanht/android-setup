@@ -53,20 +53,10 @@ class ProvisioningActivity : Activity() {
         }
         Log.i(TAG, "Device Owner established; provisioning complete")
 
-        // Only present when this activity was launched by AdminReceiver's
-        // onProfileProvisioningComplete (see its comment for why that's the
-        // hook used, not this action alone). When the OS invokes this action
-        // directly it won't carry these, and there's nothing to report yet.
-        val token = intent.getStringExtra(EXTRA_KEY_ENROLLMENT_TOKEN)
-        val callbackUrl = intent.getStringExtra(EXTRA_KEY_CALLBACK_URL)
-        val heartbeatUrl = intent.getStringExtra(EXTRA_KEY_HEARTBEAT_URL)
-        if (!token.isNullOrBlank() && !callbackUrl.isNullOrBlank()) {
-            CallbackClient.notifyEnrollmentComplete(callbackUrl, token)
-        }
-        if (!token.isNullOrBlank() && !heartbeatUrl.isNullOrBlank()) {
-            HeartbeatAlarmReceiver.start(this, token, heartbeatUrl)
-        }
-
+        // Reporting enrollment (callback/heartbeat) happens in AdminReceiver.
+        // onProfileProvisioningComplete via goAsync(), not here — this action,
+        // when invoked directly by the OS (admin-integrated flow), carries no
+        // extras and this activity's only job is to confirm compliance.
         setResult(RESULT_OK, Intent())
         finish()
     }

@@ -8,43 +8,45 @@ import java.nio.charset.StandardCharsets
 import org.json.JSONObject
 
 /**
- * Best-effort, fire-and-forget report to the provisioning backend that this
- * session finished. Must never throw out of [notifyEnrollmentComplete] and
- * must never block/fail provisioning — the OS proceeds to home regardless of
- * whether this call succeeds.
+ * Best-effort report to the provisioning backend. Must never throw and must
+ * never block/fail provisioning.
+ *
+ * These are BLOCKING calls — callers are responsible for running them off the
+ * main thread AND for keeping the process alive until they return (e.g. via
+ * BroadcastReceiver.goAsync()). A bare fire-and-forget Thread is not enough:
+ * once the triggering Activity.finish()es or the BroadcastReceiver's
+ * onReceive() returns, Android is free to kill the process before an
+ * in-flight background Thread's network request completes — that silently
+ * dropped every callback/heartbeat in earlier testing.
  */
 object CallbackClient {
     private const val TAG = "AutoSetupDPC"
     private const val TIMEOUT_MS = 5_000
 
-    fun notifyEnrollmentComplete(callbackUrl: String, token: String) {
-        Thread {
-            try {
-                val body = JSONObject().apply {
-                    put("token", token)
-                    put("model", Build.MODEL)
-                    put("androidRelease", Build.VERSION.RELEASE)
-                }.toString().toByteArray(StandardCharsets.UTF_8)
-                postJson(callbackUrl, body)
-            } catch (t: Throwable) {
-                Log.w(TAG, "Callback failed (non-fatal): ${t.message}")
-            }
-        }.start()
+    fun notifyEnrollmentCompleteBlocking(callbackUrl: String, token: String) {
+        try {
+            val body = JSONObject().apply {
+                put("token", token)
+                put("model", Build.MODEL)
+                put("androidRelease", Build.VERSION.RELEASE)
+            }.toString().toByteArray(StandardCharsets.UTF_8)
+            postJson(callbackUrl, body)
+        } catch (t: Throwable) {
+            Log.w(TAG, "Callback failed (non-fatal): ${t.message}")
+        }
     }
 
-    fun sendHeartbeat(heartbeatUrl: String, token: String, batteryLevel: Int?) {
-        Thread {
-            try {
-                val body = JSONObject().apply {
-                    put("token", token)
-                    put("model", Build.MODEL)
-                    if (batteryLevel != null) put("batteryLevel", batteryLevel)
-                }.toString().toByteArray(StandardCharsets.UTF_8)
-                postJson(heartbeatUrl, body)
-            } catch (t: Throwable) {
-                Log.w(TAG, "Heartbeat failed (non-fatal): ${t.message}")
-            }
-        }.start()
+    fun sendHeartbeatBlocking(heartbeatUrl: String, token: String, batteryLevel: Int?) {
+        try {
+            val body = JSONObject().apply {
+                put("token", token)
+                put("model", Build.MODEL)
+                if (batteryLevel != null) put("batteryLevel", batteryLevel)
+            }.toString().toByteArray(StandardCharsets.UTF_8)
+            postJson(heartbeatUrl, body)
+        } catch (t: Throwable) {
+            Log.w(TAG, "Heartbeat failed (non-fatal): ${t.message}")
+        }
     }
 
     private fun postJson(url: String, body: ByteArray) {
