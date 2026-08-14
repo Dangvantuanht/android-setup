@@ -2,11 +2,9 @@ import QRCode from "qrcode";
 import { config } from "../config.js";
 import type { EnrollmentSession } from "@prisma/client";
 
-const LOCALE_TZ_HINT: Record<string, string> = {
-  vi_VN: "Asia/Ho_Chi_Minh",
-  en_US: "America/Los_Angeles",
-  ja_JP: "Asia/Tokyo",
-};
+// All devices are Japan-based regardless of display language selected —
+// timezone is always Asia/Tokyo unless staff explicitly override it.
+const DEFAULT_TIMEZONE = "Asia/Tokyo";
 
 export function buildProvisioningPayload(session: EnrollmentSession): Record<string, unknown> {
   // Session-scoped by default so the download endpoint can refuse a second
@@ -33,7 +31,7 @@ export function buildProvisioningPayload(session: EnrollmentSession): Record<str
     "android.app.extra.PROVISIONING_DEVICE_ADMIN_PACKAGE_DOWNLOAD_LOCATION": apkUrl,
     "android.app.extra.PROVISIONING_DEVICE_ADMIN_SIGNATURE_CHECKSUM": config.dpc.checksumBase64Url,
     "android.app.extra.PROVISIONING_LOCALE": session.locale,
-    "android.app.extra.PROVISIONING_TIME_ZONE": session.timezone || LOCALE_TZ_HINT[session.locale] || "Asia/Ho_Chi_Minh",
+    "android.app.extra.PROVISIONING_TIME_ZONE": session.timezone || DEFAULT_TIMEZONE,
     "android.app.extra.PROVISIONING_SKIP_ENCRYPTION": true,
     "android.app.extra.PROVISIONING_LEAVE_ALL_SYSTEM_APPS_ENABLED": true,
     "android.app.extra.PROVISIONING_ADMIN_EXTRAS_BUNDLE": adminExtras,
