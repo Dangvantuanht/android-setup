@@ -366,6 +366,26 @@ class SetupAssistService : AccessibilityService() {
                 }
                 if (!tappedInstall) {
                     tappedInstall = clickByText(root, listOf("Cài đặt", "Install", "インストール"))
+                    if (tappedInstall) {
+                        waitMs(POLL_MS)
+                        continue
+                    }
+                }
+                // First-ever install on a fresh account can interrupt with a
+                // "set up a payment method" interstitial ("次へ" / "スキップ")
+                // between tapping Install and the download actually starting
+                // — confirmed live. Same NEXT/AFFIRM text lists as sign-in
+                // click through it; only tried once we're past the Install
+                // tap so we don't accidentally skip past the button itself.
+                if (tappedInstall) {
+                    if (clickByText(root, NEXT_TEXTS)) {
+                        waitMs(POLL_MS)
+                        continue
+                    }
+                    if (clickByText(root, AFFIRM_TEXTS)) {
+                        waitMs(POLL_MS)
+                        continue
+                    }
                 }
             } finally {
                 root.recycle()
@@ -568,6 +588,10 @@ class SetupAssistService : AccessibilityService() {
             "Tôi hiểu", "I understand", "Tiếp tục", "Continue",
             "Xem thêm", "More", "OK", "Đồng ý",
             "同意する", "有効にしない", "キャンセル", "スキップ", "後で",
+            // "Welcome to Google Play" onboarding carousel — confirmed live
+            // (2026-08-14): shows up for a genuinely fresh account, wasn't
+            // seen with the account reused across earlier test runs.
+            "始める", "Get started",
         )
 
         @Volatile var instance: SetupAssistService? = null
