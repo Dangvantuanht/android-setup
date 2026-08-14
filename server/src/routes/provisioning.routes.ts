@@ -17,33 +17,46 @@ import { listTargetApps } from "../services/targetApp.service.js";
 
 export const provisioningRouter = Router();
 
+type ClaimantResult =
+  | { ok: true; claimant: Claimant }
+  | { ok: false; reason: "not_found" | "expired" | "revoked" | "invalid" };
+
 /**
  * The helper app identifies itself either via a DPC-issued enrollment token
  * (QR/Device-Owner flow, requires the session to have actually finished
  * ENROLLED) or a short manual claim code typed by staff (for devices
  * activated by hand, requires the code to still be PENDING and unexpired).
  * Claiming via code also marks it CLAIMED so it can't be reused.
+ *
+ * Returns a discriminated reason (not just null) so the device can tell the
+ * difference between "typo/unknown code" and "this code timed out — go get a
+ * fresh one" instead of a single generic failure message.
  */
 async function resolveClaimant(
   token: unknown,
   code: unknown,
-): Promise<Claimant | null> {
+): Promise<ClaimantResult> {
   if (typeof token === "string") {
     const session = await getSessionByToken(token);
-    if (!session || session.status !== "ENROLLED") return null;
-    return { sessionId: session.id };
+    if (!session || session.status !== "ENROLLED") return { ok: false, reason: "invalid" };
+    return { ok: true, claimant: { sessionId: session.id } };
   }
   if (typeof code === "string") {
     const claimCode = await getClaimCodeByCode(code);
-    if (!claimCode) return null;
+    if (!claimCode) return { ok: false, reason: "not_found" };
     if (claimCode.status === "PENDING" && claimCode.expiresAt.getTime() >= Date.now()) {
       await markClaimCodeClaimed(claimCode.id);
-      return { claimCodeId: claimCode.id };
+      return { ok: true, claimant: { claimCodeId: claimCode.id } };
     }
-    if (claimCode.status === "CLAIMED") return { claimCodeId: claimCode.id };
-    return null;
+    // Already claimed once — still usable indefinitely (idempotent retries
+    // by the same device shouldn't get punished for taking a while).
+    if (claimCode.status === "CLAIMED") return { ok: true, claimant: { claimCodeId: claimCode.id } };
+    if (claimCode.status === "REVOKED") return { ok: false, reason: "revoked" };
+    // PENDING-but-past-expiresAt, or already flipped to EXPIRED by the
+    // background worker — either way, staff need to issue a new code.
+    return { ok: false, reason: "expired" };
   }
-  return null;
+  return { ok: false, reason: "invalid" };
 }
 
 const apkAbsolutePath = path.resolve(process.cwd(), config.dpc.apkPath);
@@ -106,12 +119,12 @@ provisioningRouter.post("/api/provisioning/heartbeat", async (req, res) => {
 // account.
 provisioningRouter.post("/api/provisioning/gmail-claim", async (req, res) => {
   const { token, code } = req.body ?? {};
-  const claimant = await resolveClaimant(token, code);
-  if (!claimant) {
-    res.status(403).json({ error: "not enrolled / invalid or expired code" });
+  const result = await resolveClaimant(token, code);
+  if (!result.ok) {
+    res.status(403).json({ error: result.reason });
     return;
   }
-  const account = await claimGmailAccount(claimant);
+  const account = await claimGmailAccount(result.claimant);
   if (!account) {
     res.status(409).json({ error: "no gmail accounts available" });
     return;
@@ -129,12 +142,12 @@ provisioningRouter.post("/api/provisioning/gmail-report", async (req, res) => {
     res.status(400).json({ error: "email and outcome (SUCCESS|FAILED) required" });
     return;
   }
-  const claimant = await resolveClaimant(token, code);
-  if (!claimant) {
-    res.status(403).json({ error: "not enrolled / invalid or expired code" });
+  const result = await resolveClaimant(token, code);
+  if (!result.ok) {
+    res.status(403).json({ error: result.reason });
     return;
   }
-  const ok = await reportGmailOutcome(email, outcome, claimant);
+  const ok = await reportGmailOutcome(email, outcome, result.claimant);
   res.status(200).json({ ok });
 });
 

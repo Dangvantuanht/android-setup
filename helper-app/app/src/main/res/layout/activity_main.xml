@@ -26,19 +26,42 @@
             android:textSize="14sp"
             android:layout_marginBottom="16dp" />
 
+        <!-- Checklist: cả 3 dòng (mã, trợ năng, pin) hiện đồng thời, không ẩn
+             nhau — làm bước nào trước cũng được, chỉ chặn lúc bấm Bắt đầu. -->
+        <LinearLayout
+            android:id="@+id/rowCode"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:background="?android:attr/selectableItemBackground"
+            android:paddingTop="10dp"
+            android:paddingBottom="10dp">
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Mã kích hoạt"
+                android:textSize="14sp" />
+
+            <TextView
+                android:id="@+id/txtCodeState"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="CHƯA NHẬP"
+                android:textStyle="bold"
+                android:textSize="12sp"
+                android:textColor="#ef4444" />
+        </LinearLayout>
+
         <LinearLayout
             android:id="@+id/layoutCodeEntry"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:visibility="gone">
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Nhập mã kích hoạt thủ công (nếu máy không tự nhận)"
-                android:textSize="14sp"
-                android:layout_marginBottom="8dp" />
+            android:visibility="gone"
+            android:layout_marginBottom="4dp">
 
             <EditText
                 android:id="@+id/editCode"
@@ -56,21 +79,111 @@
                 android:layout_marginTop="8dp" />
         </LinearLayout>
 
-        <Button
-            android:id="@+id/btnEnableAccessibility"
+        <!-- Trạng thái quyền: cả dòng bấm được (mở đúng màn hình Cài đặt), công tắc
+             chỉ để hiển thị (không tự bật/tắt được ngoài hộp thoại hệ thống). -->
+        <LinearLayout
+            android:id="@+id/rowAccessibility"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Bật Trợ năng"
-            android:visibility="gone"
-            android:layout_marginTop="8dp" />
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:background="?android:attr/selectableItemBackground"
+            android:paddingTop="10dp"
+            android:paddingBottom="10dp">
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Quyền Trợ năng"
+                android:textSize="14sp" />
+
+            <TextView
+                android:id="@+id/txtAccessibilityState"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="CẦN BẬT"
+                android:textStyle="bold"
+                android:textSize="12sp"
+                android:layout_marginEnd="8dp" />
+
+            <Switch
+                android:id="@+id/switchAccessibility"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:clickable="false"
+                android:focusable="false" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/rowBattery"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:background="?android:attr/selectableItemBackground"
+            android:paddingTop="10dp"
+            android:paddingBottom="10dp">
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Không giới hạn pin (chạy nền ổn định)"
+                android:textSize="14sp" />
+
+            <TextView
+                android:id="@+id/txtBatteryState"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="CẦN BẬT"
+                android:textStyle="bold"
+                android:textSize="12sp"
+                android:layout_marginEnd="8dp" />
+
+            <Switch
+                android:id="@+id/switchBattery"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:clickable="false"
+                android:focusable="false" />
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/txtAppsHeader"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="App cần cài"
+            android:textStyle="bold"
+            android:textSize="14sp"
+            android:layout_marginTop="16dp"
+            android:layout_marginBottom="4dp"
+            android:visibility="gone" />
+
+        <LinearLayout
+            android:id="@+id/layoutApps"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical" />
 
         <Button
             android:id="@+id/btnStart"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="Bắt đầu"
+            android:textColor="#ffffff"
+            android:backgroundTint="#22c55e"
+            android:layout_marginTop="12dp" />
+
+        <Button
+            android:id="@+id/btnStop"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Dừng"
+            android:textColor="#ffffff"
+            android:backgroundTint="#ef4444"
             android:visibility="gone"
-            android:layout_marginTop="8dp" />
+            android:layout_marginTop="12dp" />
 
         <TextView
             android:layout_width="match_parent"
