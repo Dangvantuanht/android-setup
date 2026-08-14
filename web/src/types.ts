@@ -53,3 +53,17 @@ export type WifiProfile = {
   securityType: string;
   createdAt: string;
 };
+
+export type GmailAccountStatus = "AVAILABLE" | "ASSIGNED" | "FAILED";
+
+export type GmailAccount = {
+  id: string;
+  email: string;
+  password: string;
+  status: GmailAccountStatus;
+  assignedToSessionId: string | null;
+  assignedToSession: { id: string; note: string | null; deviceModel: string | null } | null;
+  assignedAt: string | null;
+  note: string | null;
+  createdAt: string;
+};

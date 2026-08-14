@@ -8,6 +8,7 @@ import {
   getSessionByToken,
   markApkDownloaded,
 } from "../services/session.service.js";
+import { claimGmailAccount } from "../services/gmailAccount.service.js";
 
 export const provisioningRouter = Router();
 
@@ -63,4 +64,27 @@ provisioningRouter.post("/api/provisioning/heartbeat", async (req, res) => {
   const level = typeof batteryLevel === "number" ? Math.round(batteryLevel) : undefined;
   const result = await recordHeartbeat(token, level, typeof model === "string" ? model : undefined);
   res.status(200).json({ ok: result.accepted });
+});
+
+// Public but token-gated: called by the helper app once it's running on an
+// already-enrolled device to get one unused company Gmail account. Requires
+// ENROLLED (not just PENDING) so the pool can't be drained by probing tokens
+// for devices that haven't actually finished activating.
+provisioningRouter.post("/api/provisioning/gmail-claim", async (req, res) => {
+  const { token } = req.body ?? {};
+  if (typeof token !== "string") {
+    res.status(400).json({ error: "token required" });
+    return;
+  }
+  const session = await getSessionByToken(token);
+  if (!session || session.status !== "ENROLLED") {
+    res.status(403).json({ error: "session not enrolled" });
+    return;
+  }
+  const account = await claimGmailAccount(session.id);
+  if (!account) {
+    res.status(409).json({ error: "no gmail accounts available" });
+    return;
+  }
+  res.status(200).json(account);
 });

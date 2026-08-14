@@ -36,6 +36,24 @@ model WifiProfile {
   createdAt    DateTime @default(now())
 }
 
+// Pool of company-owned Gmail accounts handed out one-per-device by the
+// helper app after activation (see gmailAccount.service.ts). Kept around
+// after use (status flips to ASSIGNED, not deleted) so staff can trace which
+// device got which account — matters if a device needs re-checking later.
+model GmailAccount {
+  id                  String    @id @default(cuid())
+  email               String    @unique
+  password            String
+  status              String    @default("AVAILABLE") // AVAILABLE | ASSIGNED | FAILED
+  assignedToSessionId String?
+  assignedToSession   EnrollmentSession? @relation(fields: [assignedToSessionId], references: [id])
+  assignedAt          DateTime?
+  note                String?
+  createdAt           DateTime  @default(now())
+
+  @@index([status])
+}
+
 // SQLite has no native enum support in Prisma; status/type are validated
 // application-side against the string unions in src/types.ts.
 model EnrollmentSession {
@@ -65,6 +83,7 @@ model EnrollmentSession {
   lastSeenAt      DateTime?
 
   events EnrollmentEvent[]
+  gmailAccounts GmailAccount[]
 
   @@index([status])
   @@index([expiresAt])

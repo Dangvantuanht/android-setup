@@ -1,4 +1,4 @@
-import type { EnrollmentSession, ModelReliabilityRow, StaffUser, WifiProfile } from "./types";
+import type { EnrollmentSession, ModelReliabilityRow, StaffUser, WifiProfile, GmailAccount } from "./types";
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const res = await fetch(path, {
@@ -66,4 +66,16 @@ export const api = {
   createWifiProfile: (input: { label: string; ssid: string; password?: string; securityType?: string }) =>
     request<WifiProfile>("/api/wifi-profiles", { method: "POST", body: JSON.stringify(input) }),
   deleteWifiProfile: (id: string) => request<void>(`/api/wifi-profiles/${id}`, { method: "DELETE" }),
+
+  listGmailAccounts: () => request<GmailAccount[]>("/api/gmail-accounts"),
+  bulkAddGmailAccounts: (raw: string) =>
+    request<{ added: number; skipped: number }>("/api/gmail-accounts/bulk-add", {
+      method: "POST",
+      body: JSON.stringify({ raw }),
+    }),
+  bulkDeleteGmailAccounts: (ids: string[]) =>
+    request<{ deleted: number }>("/api/gmail-accounts/bulk-delete", {
+      method: "POST",
+      body: JSON.stringify({ ids }),
+    }),
 };

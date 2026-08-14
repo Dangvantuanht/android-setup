@@ -9,6 +9,7 @@ import { authRouter } from "./routes/auth.routes.js";
 import { sessionsRouter } from "./routes/sessions.routes.js";
 import { usersRouter } from "./routes/users.routes.js";
 import { wifiProfilesRouter } from "./routes/wifiProfiles.routes.js";
+import { gmailAccountsRouter } from "./routes/gmailAccounts.routes.js";
 import { provisioningRouter } from "./routes/provisioning.routes.js";
 import { startExpiryWorker } from "./services/expiry.worker.js";
 
@@ -52,6 +53,7 @@ app.use("/api/auth", authRouter);
 app.use("/api/sessions", sessionsRouter);
 app.use("/api/users", usersRouter);
 app.use("/api/wifi-profiles", wifiProfilesRouter);
+app.use("/api/gmail-accounts", gmailAccountsRouter);
 
 const webDist = path.resolve(process.cwd(), "../web/dist");
 if (fs.existsSync(webDist)) {

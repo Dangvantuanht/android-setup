@@ -4,6 +4,7 @@ import { Login } from "./pages/Login";
 import { SessionsList } from "./pages/SessionsList";
 import { ModelReliability } from "./pages/ModelReliability";
 import { UsersManagement } from "./pages/UsersManagement";
+import { GmailAccounts } from "./pages/GmailAccounts";
 
 function Shell({ children }: { children: React.ReactNode }) {
   const { email, role, logout } = useAuth();
@@ -17,6 +18,7 @@ function Shell({ children }: { children: React.ReactNode }) {
           </NavLink>
           <NavLink to="/reports">Báo cáo model</NavLink>
           {role === "admin" && <NavLink to="/users">Người dùng</NavLink>}
+          {role === "admin" && <NavLink to="/gmail-accounts">Tài khoản Gmail</NavLink>}
         </nav>
         <button className="logout-link" onClick={() => logout()}>
           Đăng xuất ({email})
@@ -67,6 +69,16 @@ function AppRoutes() {
           <RequireAuth>
             <RequireAdmin>
               <UsersManagement />
+            </RequireAdmin>
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/gmail-accounts"
+        element={
+          <RequireAuth>
+            <RequireAdmin>
+              <GmailAccounts />
             </RequireAdmin>
           </RequireAuth>
         }
