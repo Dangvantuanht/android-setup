@@ -6,6 +6,7 @@ import {
   setTargetAppEnabled,
   deleteTargetApps,
 } from "../services/targetApp.service.js";
+import { logAction } from "../services/auditLog.service.js";
 
 export const targetAppsRouter = Router();
 targetAppsRouter.use(requireAdmin);
@@ -20,7 +21,9 @@ targetAppsRouter.post("/bulk-add", async (req, res) => {
     res.status(400).json({ error: "raw text (one packageName|label per line) required" });
     return;
   }
-  res.status(201).json(await bulkAddTargetApps(raw));
+  const result = await bulkAddTargetApps(raw);
+  logAction(req.session.staffId, "TARGET_APP_ADDED", `added=${result.added} skipped=${result.skipped}`);
+  res.status(201).json(result);
 });
 
 targetAppsRouter.patch("/:id", async (req, res) => {
@@ -29,7 +32,9 @@ targetAppsRouter.patch("/:id", async (req, res) => {
     res.status(400).json({ error: "enabled must be boolean" });
     return;
   }
-  res.json(await setTargetAppEnabled(req.params.id, enabled));
+  const updated = await setTargetAppEnabled(req.params.id, enabled);
+  logAction(req.session.staffId, "TARGET_APP_TOGGLED", `${updated.label}: enabled=${enabled}`);
+  res.json(updated);
 });
 
 targetAppsRouter.post("/bulk-delete", async (req, res) => {
@@ -38,5 +43,7 @@ targetAppsRouter.post("/bulk-delete", async (req, res) => {
     res.status(400).json({ error: "ids must be a string array" });
     return;
   }
-  res.json({ deleted: await deleteTargetApps(ids) });
+  const deleted = await deleteTargetApps(ids);
+  logAction(req.session.staffId, "TARGET_APP_DELETED", `count=${deleted}`);
+  res.json({ deleted });
 });

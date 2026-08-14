@@ -7,6 +7,7 @@ import {
   getAutoApprove,
   setAutoApprove,
 } from "../services/user.service.js";
+import { logAction } from "../services/auditLog.service.js";
 
 export const usersRouter = Router();
 usersRouter.use(requireAdmin);
@@ -58,6 +59,7 @@ usersRouter.patch("/:id", async (req, res) => {
   }
 
   const updated = await updateUser(req.params.id, data);
+  logAction(req.session.staffId, "USER_UPDATED", `${updated.email}: ${JSON.stringify(data)}`);
   res.json(updated);
 });
 
@@ -67,5 +69,6 @@ usersRouter.delete("/:id", async (req, res) => {
     return;
   }
   await deleteUser(req.params.id);
+  logAction(req.session.staffId, "USER_DELETED", req.params.id);
   res.status(204).end();
 });

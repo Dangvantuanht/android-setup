@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { api } from "../api";
+import { useAuth } from "../AuthContext";
 import type { GmailAccount } from "../types";
 
 const STATUS_LABEL: Record<string, string> = {
@@ -9,6 +10,7 @@ const STATUS_LABEL: Record<string, string> = {
 };
 
 export function GmailAccounts() {
+  const { role } = useAuth();
   const [accounts, setAccounts] = useState<GmailAccount[]>([]);
   const [loading, setLoading] = useState(true);
   const [bulkText, setBulkText] = useState("");
@@ -127,6 +129,7 @@ export function GmailAccounts() {
             <th>Email</th>
             <th>Mật khẩu</th>
             <th>Trạng thái</th>
+            {role === "admin" && <th>Chủ sở hữu</th>}
             <th>Gán cho</th>
             <th>Thời gian gán</th>
             <th>Tạo lúc</th>
@@ -148,6 +151,7 @@ export function GmailAccounts() {
                 <td>{a.email}</td>
                 <td>{showPasswords ? a.password : "••••••••"}</td>
                 <td>{STATUS_LABEL[a.status] ?? a.status}</td>
+                {role === "admin" && <td>{a.owner?.email || "—"}</td>}
                 <td>{assignedLabel}</td>
                 <td>{a.assignedAt ? new Date(a.assignedAt).toLocaleString() : "—"}</td>
                 <td>{new Date(a.createdAt).toLocaleDateString()}</td>
@@ -161,7 +165,7 @@ export function GmailAccounts() {
           })}
           {accounts.length === 0 && (
             <tr>
-              <td colSpan={8}>Chưa có tài khoản nào.</td>
+              <td colSpan={role === "admin" ? 9 : 8}>Chưa có tài khoản nào.</td>
             </tr>
           )}
         </tbody>

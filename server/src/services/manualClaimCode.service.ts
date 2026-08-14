@@ -35,11 +35,17 @@ export async function createClaimCode(
   throw new Error("Could not generate a unique claim code");
 }
 
-export async function listClaimCodes() {
+// Silo'd per staff, same as sessions and Gmail accounts — ownerStaffId
+// undefined (admin) returns every staffer's codes for oversight.
+export async function listClaimCodes(ownerStaffId?: string) {
   return prisma.manualClaimCode.findMany({
+    where: ownerStaffId ? { createdByStaffId: ownerStaffId } : undefined,
     orderBy: { createdAt: "desc" },
     take: 200,
-    include: { gmailAccounts: { select: { email: true, status: true } } },
+    include: {
+      gmailAccounts: { select: { email: true, status: true } },
+      createdBy: { select: { id: true, email: true } },
+    },
   });
 }
 

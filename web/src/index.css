@@ -116,6 +116,25 @@ body {
   color: white;
 }
 
+.sidebar-admin-label {
+  color: #7c8db5;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  padding: 0 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.sidebar-admin-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 0.5rem;
+  background: rgba(79, 110, 247, 0.08);
+  border: 1px solid rgba(79, 110, 247, 0.2);
+  border-radius: 10px;
+}
+
 .logout-link {
   margin-top: auto;
   background: transparent;

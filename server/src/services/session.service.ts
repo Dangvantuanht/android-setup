@@ -24,6 +24,8 @@ const SAFE_SESSION_SELECT = {
   apkVersion: true,
   batteryLevel: true,
   lastSeenAt: true,
+  createdByStaffId: true,
+  createdBy: { select: { id: true, email: true } },
 } satisfies Prisma.EnrollmentSessionSelect;
 
 export type CreateSessionInput = {
@@ -81,9 +83,16 @@ export async function createSessionsBulk(
   return created;
 }
 
-export async function listSessions(status?: string) {
+// Each staff member's own scanned/created devices only — admin passes
+// ownerStaffId=undefined to see everyone's (silo'd per-user, like claim
+// codes and Gmail accounts, so tracking "who's managing what" isn't a mess
+// of everyone's devices mixed together).
+export async function listSessions(status?: string, ownerStaffId?: string) {
   return prisma.enrollmentSession.findMany({
-    where: status ? { status: status as any } : undefined,
+    where: {
+      ...(status ? { status: status as any } : {}),
+      ...(ownerStaffId ? { createdByStaffId: ownerStaffId } : {}),
+    },
     orderBy: { createdAt: "desc" },
     take: 200,
     select: SAFE_SESSION_SELECT,

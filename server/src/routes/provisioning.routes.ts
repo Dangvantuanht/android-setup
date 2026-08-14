@@ -18,7 +18,7 @@ import { listTargetApps } from "../services/targetApp.service.js";
 export const provisioningRouter = Router();
 
 type ClaimantResult =
-  | { ok: true; claimant: Claimant }
+  | { ok: true; claimant: Claimant; ownerStaffId: string | null }
   | { ok: false; reason: "not_found" | "expired" | "revoked" | "invalid" };
 
 /**
@@ -39,18 +39,20 @@ async function resolveClaimant(
   if (typeof token === "string") {
     const session = await getSessionByToken(token);
     if (!session || session.status !== "ENROLLED") return { ok: false, reason: "invalid" };
-    return { ok: true, claimant: { sessionId: session.id } };
+    return { ok: true, claimant: { sessionId: session.id }, ownerStaffId: session.createdByStaffId };
   }
   if (typeof code === "string") {
     const claimCode = await getClaimCodeByCode(code);
     if (!claimCode) return { ok: false, reason: "not_found" };
     if (claimCode.status === "PENDING" && claimCode.expiresAt.getTime() >= Date.now()) {
       await markClaimCodeClaimed(claimCode.id);
-      return { ok: true, claimant: { claimCodeId: claimCode.id } };
+      return { ok: true, claimant: { claimCodeId: claimCode.id }, ownerStaffId: claimCode.createdByStaffId };
     }
     // Already claimed once — still usable indefinitely (idempotent retries
     // by the same device shouldn't get punished for taking a while).
-    if (claimCode.status === "CLAIMED") return { ok: true, claimant: { claimCodeId: claimCode.id } };
+    if (claimCode.status === "CLAIMED") {
+      return { ok: true, claimant: { claimCodeId: claimCode.id }, ownerStaffId: claimCode.createdByStaffId };
+    }
     if (claimCode.status === "REVOKED") return { ok: false, reason: "revoked" };
     // PENDING-but-past-expiresAt, or already flipped to EXPIRED by the
     // background worker — either way, staff need to issue a new code.
@@ -140,7 +142,7 @@ provisioningRouter.post("/api/provisioning/gmail-claim", async (req, res) => {
     res.status(403).json({ error: result.reason });
     return;
   }
-  const account = await claimGmailAccount(result.claimant);
+  const account = await claimGmailAccount(result.claimant, result.ownerStaffId);
   if (!account) {
     res.status(409).json({ error: "no gmail accounts available" });
     return;

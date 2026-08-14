@@ -44,13 +44,23 @@ sessionsRouter.post("/bulk-delete", async (req, res) => {
     res.status(400).json({ error: "ids must be a string array" });
     return;
   }
-  const deleted = await deleteSessions(ids, req.session.staffRole === "admin");
+  const isAdmin = req.session.staffRole === "admin";
+  let targetIds = ids;
+  if (!isAdmin) {
+    const owned = await prisma.enrollmentSession.findMany({
+      where: { id: { in: ids }, createdByStaffId: req.session.staffId },
+      select: { id: true },
+    });
+    targetIds = owned.map((s) => s.id);
+  }
+  const deleted = await deleteSessions(targetIds, isAdmin);
   res.json({ deleted });
 });
 
 sessionsRouter.get("/", async (req, res) => {
   const status = typeof req.query.status === "string" ? req.query.status : undefined;
-  const sessions = await listSessions(status);
+  const ownerStaffId = req.session.staffRole === "admin" ? undefined : req.session.staffId;
+  const sessions = await listSessions(status, ownerStaffId);
   res.json(sessions);
 });
 
@@ -79,9 +89,16 @@ sessionsRouter.get("/reports/model-reliability", async (_req, res) => {
   res.json(await modelReliabilityReport());
 });
 
+// Staff can only reach their own sessions by id too — silo applies to direct
+// lookups, not just the list view (otherwise guessing/pasting another
+// staffer's session id would leak it).
+function ownsSession(req: { session: { staffRole?: string; staffId?: string } }, session: { createdByStaffId: string | null }): boolean {
+  return req.session.staffRole === "admin" || session.createdByStaffId === req.session.staffId;
+}
+
 sessionsRouter.get("/:id", async (req, res) => {
   const session = await getSessionDetail(req.params.id);
-  if (!session) {
+  if (!session || !ownsSession(req, session)) {
     res.status(404).json({ error: "not found" });
     return;
   }
@@ -90,7 +107,7 @@ sessionsRouter.get("/:id", async (req, res) => {
 
 sessionsRouter.get("/:id/qr.png", async (req, res) => {
   const session = await prisma.enrollmentSession.findUnique({ where: { id: req.params.id } });
-  if (!session) {
+  if (!session || !ownsSession(req, session)) {
     res.status(404).end();
     return;
   }
@@ -100,6 +117,11 @@ sessionsRouter.get("/:id/qr.png", async (req, res) => {
 });
 
 sessionsRouter.delete("/:id", async (req, res) => {
+  const existing = await prisma.enrollmentSession.findUnique({ where: { id: req.params.id } });
+  if (!existing || !ownsSession(req, existing)) {
+    res.status(404).json({ error: "session not found" });
+    return;
+  }
   const result = await revokeSession(req.params.id);
   if (!result.ok) {
     const messages: Record<string, string> = {

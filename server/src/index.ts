@@ -12,6 +12,7 @@ import { wifiProfilesRouter } from "./routes/wifiProfiles.routes.js";
 import { gmailAccountsRouter } from "./routes/gmailAccounts.routes.js";
 import { manualClaimCodesRouter } from "./routes/manualClaimCodes.routes.js";
 import { targetAppsRouter } from "./routes/targetApps.routes.js";
+import { auditLogsRouter } from "./routes/auditLogs.routes.js";
 import { provisioningRouter } from "./routes/provisioning.routes.js";
 import { startExpiryWorker } from "./services/expiry.worker.js";
 
@@ -58,6 +59,7 @@ app.use("/api/wifi-profiles", wifiProfilesRouter);
 app.use("/api/gmail-accounts", gmailAccountsRouter);
 app.use("/api/claim-codes", manualClaimCodesRouter);
 app.use("/api/target-apps", targetAppsRouter);
+app.use("/api/audit-logs", auditLogsRouter);
 
 const webDist = path.resolve(process.cwd(), "../web/dist");
 if (fs.existsSync(webDist)) {

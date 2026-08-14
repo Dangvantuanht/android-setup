@@ -6,6 +6,7 @@ import type {
   GmailAccount,
   ManualClaimCode,
   TargetApp,
+  AuditLog,
 } from "./types";
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
@@ -107,4 +108,6 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ ids }),
     }),
+
+  listAuditLogs: () => request<AuditLog[]>("/api/audit-logs"),
 };

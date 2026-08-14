@@ -24,6 +24,8 @@ export type EnrollmentSession = {
   batteryLevel: number | null;
   lastSeenAt: string | null;
   events?: EnrollmentEvent[];
+  createdByStaffId: string | null;
+  createdBy: { id: string; email: string } | null;
 };
 
 export type ModelReliabilityRow = {
@@ -61,6 +63,8 @@ export type GmailAccount = {
   email: string;
   password: string;
   status: GmailAccountStatus;
+  ownerStaffId: string | null;
+  owner: { id: string; email: string } | null;
   assignedToSessionId: string | null;
   assignedToSession: { id: string; note: string | null; deviceModel: string | null } | null;
   assignedToClaimCodeId: string | null;
@@ -80,6 +84,8 @@ export type ManualClaimCode = {
   createdAt: string;
   expiresAt: string;
   claimedAt: string | null;
+  createdByStaffId: string | null;
+  createdBy: { id: string; email: string } | null;
   gmailAccounts: { email: string; status: GmailAccountStatus }[];
 };
 
@@ -88,5 +94,14 @@ export type TargetApp = {
   packageName: string;
   label: string;
   enabled: boolean;
+  createdAt: string;
+};
+
+export type AuditLog = {
+  id: string;
+  staffId: string | null;
+  staff: { id: string; email: string } | null;
+  action: string;
+  detail: string | null;
   createdAt: string;
 };

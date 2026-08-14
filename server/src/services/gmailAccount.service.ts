@@ -1,9 +1,14 @@
 import { prisma } from "../db/prisma.js";
 
-export async function listGmailAccounts() {
+// Silo'd per staff (see schema.prisma doc comment on GmailAccount) —
+// ownerStaffId=undefined (admin) returns every staffer's pool for oversight,
+// scoped otherwise so staff only manage their own accounts.
+export async function listGmailAccounts(ownerStaffId?: string) {
   return prisma.gmailAccount.findMany({
+    where: ownerStaffId ? { ownerStaffId } : undefined,
     orderBy: { createdAt: "desc" },
     include: {
+      owner: { select: { id: true, email: true } },
       assignedToSession: { select: { id: true, note: true, deviceModel: true } },
       assignedToClaimCode: { select: { id: true, code: true, note: true } },
     },
@@ -15,6 +20,7 @@ export async function listGmailAccounts() {
  * the same batch twice is harmless. */
 export async function bulkAddGmailAccounts(
   raw: string,
+  ownerStaffId: string,
 ): Promise<{ added: number; skipped: number }> {
   const lines = raw
     .split("\n")
@@ -34,14 +40,18 @@ export async function bulkAddGmailAccounts(
       skipped++;
       continue;
     }
-    await prisma.gmailAccount.create({ data: { email, password } });
+    await prisma.gmailAccount.create({ data: { email, password, ownerStaffId } });
     added++;
   }
   return { added, skipped };
 }
 
-export async function deleteGmailAccounts(ids: string[]): Promise<number> {
-  const result = await prisma.gmailAccount.deleteMany({ where: { id: { in: ids } } });
+// Staff may only delete their own accounts — ids outside their pool are
+// silently excluded rather than erroring (matches deleteSessions' pattern).
+export async function deleteGmailAccounts(ids: string[], ownerStaffId?: string): Promise<number> {
+  const result = await prisma.gmailAccount.deleteMany({
+    where: { id: { in: ids }, ...(ownerStaffId ? { ownerStaffId } : {}) },
+  });
   return result.count;
 }
 
@@ -58,16 +68,24 @@ function claimantWhere(claimant: Claimant) {
  * (session or claim code) that already has an account assigned gets that
  * SAME one back instead of draining a second account from the pool — a
  * helper app retrying the request (network hiccup, user reopening the app)
- * must not silently consume extra accounts. */
+ * must not silently consume extra accounts.
+ *
+ * ownerStaffId is whoever created the claiming session/claim code (resolved
+ * by the caller) — only that staffer's own pool is drawn from, never
+ * borrowed across staff. null (no resolvable creator — shouldn't happen for
+ * anything created after staff login was required) fails closed rather than
+ * silently pulling from an unowned/wrong pool. */
 export async function claimGmailAccount(
   claimant: Claimant,
+  ownerStaffId: string | null,
 ): Promise<{ email: string; password: string } | null> {
+  if (!ownerStaffId) return null;
   return prisma.$transaction(async (tx) => {
     const existing = await tx.gmailAccount.findFirst({ where: claimantWhere(claimant) });
     if (existing) return { email: existing.email, password: existing.password };
 
     const account = await tx.gmailAccount.findFirst({
-      where: { status: "AVAILABLE" },
+      where: { status: "AVAILABLE", ownerStaffId },
       orderBy: { createdAt: "asc" },
     });
     if (!account) return null;

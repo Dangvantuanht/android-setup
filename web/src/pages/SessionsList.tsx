@@ -332,6 +332,7 @@ export function SessionsList() {
             <th>Online</th>
             <th>Wi-Fi</th>
             <th>Ghi chú</th>
+            {isAdmin && <th>Người tạo</th>}
             <th>Tạo lúc</th>
             <th>Hết hạn / còn lại</th>
             <th></th>
@@ -364,6 +365,7 @@ export function SessionsList() {
                 </td>
                 <td>{s.wifiSsid || "—"}</td>
                 <td>{s.note || "—"}</td>
+                {isAdmin && <td>{s.createdBy?.email || "—"}</td>}
                 <td>{new Date(s.createdAt).toLocaleTimeString()}</td>
                 <td>{s.status === "PENDING" ? timeLeft(s.expiresAt) : "—"}</td>
                 <td>
@@ -386,7 +388,7 @@ export function SessionsList() {
           })}
           {sessions.length === 0 && (
             <tr>
-              <td colSpan={12}>Chưa có phiên nào.</td>
+              <td colSpan={isAdmin ? 13 : 12}>Chưa có phiên nào.</td>
             </tr>
           )}
         </tbody>

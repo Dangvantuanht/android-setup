@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { api } from "../api";
+import { useAuth } from "../AuthContext";
 import type { ManualClaimCode } from "../types";
 
 const STATUS_LABEL: Record<string, string> = {
@@ -18,6 +19,7 @@ function timeLeft(expiresAt: string): string {
 }
 
 export function ManualClaimCodes() {
+  const { role } = useAuth();
   const [codes, setCodes] = useState<ManualClaimCode[]>([]);
   const [note, setNote] = useState("");
   const [creating, setCreating] = useState(false);
@@ -84,6 +86,7 @@ export function ManualClaimCodes() {
             <th>Trạng thái</th>
             <th>Ghi chú</th>
             <th>Gmail đã gán</th>
+            {role === "admin" && <th>Người tạo</th>}
             <th>Tạo lúc</th>
             <th>Hết hạn / còn lại</th>
             <th></th>
@@ -96,6 +99,7 @@ export function ManualClaimCodes() {
               <td>{STATUS_LABEL[c.status] ?? c.status}</td>
               <td>{c.note || "—"}</td>
               <td>{c.gmailAccounts.length > 0 ? c.gmailAccounts.map((g) => g.email).join(", ") : "—"}</td>
+              {role === "admin" && <td>{c.createdBy?.email || "—"}</td>}
               <td>{new Date(c.createdAt).toLocaleTimeString()}</td>
               <td>{c.status === "PENDING" ? timeLeft(c.expiresAt) : "—"}</td>
               <td>
@@ -109,7 +113,7 @@ export function ManualClaimCodes() {
           ))}
           {codes.length === 0 && (
             <tr>
-              <td colSpan={7}>Chưa có mã nào.</td>
+              <td colSpan={role === "admin" ? 8 : 7}>Chưa có mã nào.</td>
             </tr>
           )}
         </tbody>

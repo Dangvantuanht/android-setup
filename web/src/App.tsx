@@ -7,6 +7,7 @@ import { UsersManagement } from "./pages/UsersManagement";
 import { GmailAccounts } from "./pages/GmailAccounts";
 import { ManualClaimCodes } from "./pages/ManualClaimCodes";
 import { TargetApps } from "./pages/TargetApps";
+import { SystemLogs } from "./pages/SystemLogs";
 
 function Shell({ children }: { children: React.ReactNode }) {
   const { email, role, logout } = useAuth();
@@ -15,15 +16,26 @@ function Shell({ children }: { children: React.ReactNode }) {
       <aside className="sidebar">
         <div className="sidebar-title">Autosetup</div>
         <nav>
+          {/* Chung cho mọi tài khoản — dữ liệu tự lọc theo đúng người dùng
+              (mỗi staff chỉ thấy máy/mã/Gmail do chính mình tạo), admin thấy
+              hết. Không cần tách nav riêng vì cùng 1 trang, khác dữ liệu. */}
           <NavLink to="/" end>
             Phiên kích hoạt
           </NavLink>
+          <NavLink to="/claim-codes">Mã kích hoạt thủ công</NavLink>
+          <NavLink to="/gmail-accounts">Tài khoản Gmail</NavLink>
           <NavLink to="/reports">Báo cáo model</NavLink>
-          {role === "admin" && <NavLink to="/users">Người dùng</NavLink>}
-          {role === "admin" && <NavLink to="/gmail-accounts">Tài khoản Gmail</NavLink>}
-          {role === "admin" && <NavLink to="/claim-codes">Mã kích hoạt thủ công</NavLink>}
-          {role === "admin" && <NavLink to="/target-apps">App cần cài</NavLink>}
         </nav>
+        {role === "admin" && (
+          <>
+            <div className="sidebar-admin-label">ADMIN</div>
+            <nav className="sidebar-admin-section">
+              <NavLink to="/users">Người dùng</NavLink>
+              <NavLink to="/target-apps">App cần cài</NavLink>
+              <NavLink to="/logs">System Logs</NavLink>
+            </nav>
+          </>
+        )}
         <button className="logout-link" onClick={() => logout()}>
           Đăng xuất ({email})
         </button>
@@ -81,9 +93,7 @@ function AppRoutes() {
         path="/gmail-accounts"
         element={
           <RequireAuth>
-            <RequireAdmin>
-              <GmailAccounts />
-            </RequireAdmin>
+            <GmailAccounts />
           </RequireAuth>
         }
       />
@@ -91,9 +101,7 @@ function AppRoutes() {
         path="/claim-codes"
         element={
           <RequireAuth>
-            <RequireAdmin>
-              <ManualClaimCodes />
-            </RequireAdmin>
+            <ManualClaimCodes />
           </RequireAuth>
         }
       />
@@ -103,6 +111,16 @@ function AppRoutes() {
           <RequireAuth>
             <RequireAdmin>
               <TargetApps />
+            </RequireAdmin>
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/logs"
+        element={
+          <RequireAuth>
+            <RequireAdmin>
+              <SystemLogs />
             </RequireAdmin>
           </RequireAuth>
         }

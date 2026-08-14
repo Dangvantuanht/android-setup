@@ -3,6 +3,7 @@ import bcrypt from "bcryptjs";
 import rateLimit from "express-rate-limit";
 import { prisma } from "../db/prisma.js";
 import { registerUser } from "../services/user.service.js";
+import { logAction } from "../services/auditLog.service.js";
 
 export const authRouter = Router();
 
@@ -58,6 +59,7 @@ authRouter.post("/login", loginLimiter, async (req, res) => {
   if (rememberMe === true) {
     req.session.cookie.maxAge = REMEMBER_ME_MAX_AGE_MS;
   }
+  logAction(user.id, "LOGIN", user.email);
   res.json({ id: user.id, email: user.email, role: user.role });
 });
 
@@ -81,6 +83,7 @@ authRouter.post("/register", registerLimiter, async (req, res) => {
     res.status(409).json({ error: result.error });
     return;
   }
+  logAction(undefined, "USER_REGISTERED", email);
   res.status(201).json({ ok: true });
 });
 

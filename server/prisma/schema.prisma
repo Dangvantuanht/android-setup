@@ -18,6 +18,8 @@ model StaffUser {
 
   sessions EnrollmentSession[]
   claimCodes ManualClaimCode[]
+  gmailAccounts GmailAccount[]
+  auditLogs AuditLog[]
 }
 
 // Singleton-ish key/value store for dashboard-wide toggles (e.g. auto-approve
@@ -41,11 +43,18 @@ model WifiProfile {
 // helper app after activation (see gmailAccount.service.ts). Kept around
 // after use (status flips to ASSIGNED, not deleted) so staff can trace which
 // device got which account — matters if a device needs re-checking later.
+//
+// Silo'd per staff member on purpose (see ownerStaffId): a claim can only
+// draw from the pool belonging to whoever created the claiming session/code,
+// never borrowed across staff — keeps "who's managing what" from turning
+// into a shared free-for-all as more staff use the dashboard.
 model GmailAccount {
   id                  String    @id @default(cuid())
   email               String    @unique
   password            String
   status              String    @default("AVAILABLE") // AVAILABLE | ASSIGNED | FAILED
+  ownerStaffId        String?
+  owner               StaffUser? @relation(fields: [ownerStaffId], references: [id])
   assignedToSessionId String?
   assignedToSession   EnrollmentSession? @relation(fields: [assignedToSessionId], references: [id])
   assignedToClaimCodeId String?
@@ -55,6 +64,7 @@ model GmailAccount {
   createdAt           DateTime  @default(now())
 
   @@index([status])
+  @@index([ownerStaffId])
 }
 
 // Manual counterpart to EnrollmentSession's token, for devices that were NOT
@@ -134,6 +144,22 @@ model EnrollmentEvent {
   createdAt   DateTime @default(now())
 
   @@index([sessionId])
+}
+
+// Admin-only audit trail — who did what, when. Written by the routes that
+// change shared/sensitive state (target apps, user approvals, etc.); reading
+// a session/claim-code/gmail-account's own history is already covered by
+// EnrollmentEvent and each row's own timestamps, so this focuses on actions
+// that don't otherwise leave a record staff can see.
+model AuditLog {
+  id        String   @id @default(cuid())
+  staffId   String?
+  staff     StaffUser? @relation(fields: [staffId], references: [id])
+  action    String   // e.g. "TARGET_APP_ADDED", "USER_APPROVED", "GMAIL_ACCOUNT_ADDED"
+  detail    String?
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
 }
 
 model ReleaseApk {
