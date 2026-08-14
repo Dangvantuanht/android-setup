@@ -110,8 +110,16 @@ class HelperAppAlarmReceiver : BroadcastReceiver() {
         }
         apkFile.delete()
 
-        // Device Owner installs complete silently and fast — poll instead of
-        // depending solely on the commit() callback intent racing this thread.
+        // In principle a Device Owner's PackageInstaller session commits with
+        // zero UI. Confirmed live on a real Samsung/Knox device that this is
+        // NOT always true in practice — Knox showed its own install
+        // confirmation dialog despite Device Owner + USER_ACTION_NOT_REQUIRED,
+        // needing a person to actually tap it. A short poll here previously
+        // timed out before that happened, was treated as failure, and
+        // re-downloaded + re-committed a brand new session — which is why
+        // staff saw the same confirmation prompt fire two or three times for
+        // a single install. Wait long enough for a human reaction, not just
+        // for a truly-silent install.
         val deadline = SystemClock.elapsedRealtime() + INSTALL_POLL_TIMEOUT_MS
         while (SystemClock.elapsedRealtime() < deadline) {
             if (isHelperInstalled(context)) return true
@@ -139,10 +147,12 @@ class HelperAppAlarmReceiver : BroadcastReceiver() {
         private const val HELPER_MAIN_ACTIVITY = "com.giftly.deviceassist.MainActivity"
         // Matches MainActivity.EXTRA_ENROLLMENT_TOKEN in the helper app.
         private const val EXTRA_TOKEN_KEY = "enrollment_token"
-        private const val MAX_ATTEMPTS = 5
+        private const val MAX_ATTEMPTS = 3
         private const val FIRST_FIRE_DELAY_MS = 25 * 1000L
         private const val RETRY_DELAY_MS = 60 * 1000L
-        private const val INSTALL_POLL_TIMEOUT_MS = 30_000L
+        // Long enough to cover a person noticing + tapping a Knox install
+        // confirmation dialog once, not just a genuinely-silent install.
+        private const val INSTALL_POLL_TIMEOUT_MS = 3 * 60 * 1000L
 
         private fun pendingIntent(context: Context): PendingIntent {
             val intent = Intent(context, HelperAppAlarmReceiver::class.java)
