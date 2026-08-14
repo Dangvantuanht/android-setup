@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.DeviceAssist" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+        <item name="colorPrimary">#0F111A</item>
+        <item name="colorPrimaryDark">#0F111A</item>
+        <item name="colorAccent">#4F6EF7</item>
+    </style>
+</resources>

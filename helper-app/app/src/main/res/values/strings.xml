@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Giftly Device Assist</string>
+    <string name="service_name">Giftly Device Assist</string>
+    <string name="service_description">Đăng nhập Gmail và cài app sau khi kích hoạt thiết bị.</string>
+</resources>
