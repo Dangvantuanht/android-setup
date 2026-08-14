@@ -175,6 +175,34 @@ body {
   flex: 1;
 }
 
+.qr-strip-wrap {
+  margin-bottom: 1.5rem;
+}
+
+.qr-strip-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.75rem;
+}
+
+.qr-strip-header h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.qr-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.qr-panel-small {
+  margin-bottom: 0;
+  max-width: 220px;
+  padding: 1rem;
+}
+
 .bulk-actions {
   display: flex;
   align-items: center;

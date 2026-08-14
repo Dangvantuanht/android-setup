@@ -56,6 +56,7 @@ export function SessionsList() {
   const [saveWifi, setSaveWifi] = useState(false);
   const [count, setCount] = useState(1);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [batchIds, setBatchIds] = useState<string[]>([]);
 
   async function refresh() {
     setSessions(await api.listSessions());
@@ -117,9 +118,11 @@ export function SessionsList() {
       setSaveWifi(false);
       setCount(1);
       await refresh();
-      // Only auto-open the QR panel for a single QR — with a batch, staff
-      // pick each one from the table ("Xem QR") instead.
-      if (created.length === 1) setActiveQrId(created[0].id);
+      if (created.length === 1) {
+        setActiveQrId(created[0].id);
+      } else {
+        setBatchIds(created.map((s) => s.id));
+      }
     } finally {
       setCreating(false);
     }
@@ -129,6 +132,7 @@ export function SessionsList() {
     try {
       await api.revokeSession(id);
       if (activeQrId === id) setActiveQrId(null);
+      setBatchIds((prev) => prev.filter((x) => x !== id));
       await refresh();
     } catch (err) {
       alert(err instanceof Error ? err.message : "Không thu hồi được");
@@ -163,6 +167,18 @@ export function SessionsList() {
   useEffect(() => {
     if (activeSession?.status === "ENROLLED") setActiveQrId(null);
   }, [activeSession?.status]);
+
+  const batchSessions = batchIds
+    .map((id) => sessions.find((s) => s.id === id))
+    .filter((s): s is EnrollmentSession => !!s);
+
+  // Drop each QR out of the strip as soon as its device enrolls, same as the
+  // single-QR panel — no need to babysit which ones are already done.
+  useEffect(() => {
+    const stillPending = batchSessions.filter((s) => s.status === "PENDING").map((s) => s.id);
+    if (stillPending.length !== batchIds.length) setBatchIds(stillPending);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sessions]);
 
   return (
     <div className="sessions-page">
@@ -259,6 +275,32 @@ export function SessionsList() {
             Xóa QR
           </button>
           <button onClick={() => setActiveQrId(null)}>Đóng</button>
+        </div>
+      )}
+
+      {batchSessions.length > 0 && (
+        <div className="qr-strip-wrap">
+          <div className="qr-strip-header">
+            <h3>{batchSessions.length} QR đang chờ quét</h3>
+            <button onClick={() => setBatchIds([])}>Đóng tất cả</button>
+          </div>
+          <div className="qr-strip">
+            {batchSessions.map((s) => (
+              <div key={s.id} className="qr-panel qr-panel-small">
+                <img src={`/api/sessions/${s.id}/qr.png`} alt="Provisioning QR" width={180} />
+                <p>Wi-Fi: {s.wifiSsid || "—"}</p>
+                <p>Còn hiệu lực: {timeLeft(s.expiresAt)}</p>
+                <button
+                  className="danger"
+                  disabled={!!s.downloadedAt}
+                  title={s.downloadedAt ? "Máy đã tải APK — không thể thu hồi được nữa" : undefined}
+                  onClick={() => onRevoke(s.id)}
+                >
+                  Thu hồi
+                </button>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
