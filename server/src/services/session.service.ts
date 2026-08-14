@@ -131,14 +131,19 @@ export async function markApkDownloaded(token: string): Promise<void> {
   await prisma.enrollmentEvent.create({ data: { sessionId: session.id, type: "APK_DOWNLOADED" } });
 }
 
-const DELETABLE_STATUSES = ["EXPIRED", "REVOKED", "FAILED"];
+const STAFF_DELETABLE_STATUSES = ["EXPIRED", "REVOKED", "FAILED"];
+const ADMIN_DELETABLE_STATUSES = [...STAFF_DELETABLE_STATUSES, "ENROLLED"];
 
 /** Hard-deletes finished/dead sessions (history cleanup). Silently skips
- * anything still PENDING or ENROLLED — those aren't clutter, they're either
- * active or a real successful activation. */
-export async function deleteSessions(ids: string[]): Promise<number> {
+ * anything still PENDING — that one's still active. Regular staff can only
+ * clear out junk (expired/revoked/failed); deleting a real successful
+ * activation record is admin-only. */
+export async function deleteSessions(ids: string[], isAdmin: boolean): Promise<number> {
   const result = await prisma.enrollmentSession.deleteMany({
-    where: { id: { in: ids }, status: { in: DELETABLE_STATUSES } },
+    where: {
+      id: { in: ids },
+      status: { in: isAdmin ? ADMIN_DELETABLE_STATUSES : STAFF_DELETABLE_STATUSES },
+    },
   });
   return result.count;
 }

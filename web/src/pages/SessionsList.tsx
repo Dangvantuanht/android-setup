@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { api } from "../api";
+import { useAuth } from "../AuthContext";
 import type { EnrollmentSession, WifiProfile } from "../types";
 
 const STATUS_LABEL: Record<string, string> = {
@@ -42,6 +43,8 @@ const LOCALES = [
 ];
 
 export function SessionsList() {
+  const { role } = useAuth();
+  const isAdmin = role === "admin";
   const [sessions, setSessions] = useState<EnrollmentSession[]>([]);
   const [activeQrId, setActiveQrId] = useState<string | null>(null);
   const [wifiSsid, setWifiSsid] = useState("");
@@ -156,7 +159,11 @@ export function SessionsList() {
     setSelectedIds(new Set());
     await refresh();
     if (deleted < requested) {
-      alert("Một số mục đang chờ hoặc đã kích hoạt không thể xoá, chỉ xoá được các mục đã hết hạn/thu hồi/lỗi.");
+      alert(
+        isAdmin
+          ? "Một số mục đang chờ không thể xoá (phiên còn hoạt động)."
+          : "Một số mục đang chờ hoặc đã kích hoạt không thể xoá — chỉ admin mới xoá được mục đã kích hoạt.",
+      );
     }
   }
 
@@ -332,7 +339,8 @@ export function SessionsList() {
         </thead>
         <tbody>
           {sessions.map((s) => {
-            const deletable = ["EXPIRED", "REVOKED", "FAILED"].includes(s.status);
+            const deletable =
+              ["EXPIRED", "REVOKED", "FAILED"].includes(s.status) || (isAdmin && s.status === "ENROLLED");
             return (
               <tr key={s.id} className={`status-${s.status.toLowerCase()}`}>
                 <td>

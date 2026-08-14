@@ -44,7 +44,7 @@ sessionsRouter.post("/bulk-delete", async (req, res) => {
     res.status(400).json({ error: "ids must be a string array" });
     return;
   }
-  const deleted = await deleteSessions(ids);
+  const deleted = await deleteSessions(ids, req.session.staffRole === "admin");
   res.json({ deleted });
 });
 
