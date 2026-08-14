@@ -1,8 +1,10 @@
 package com.autosetup.dpc
 
 import android.app.Activity
+import android.app.NotificationManager
 import android.app.admin.DevicePolicyManager
 import android.content.Intent
+import android.media.AudioManager
 import android.os.Bundle
 import android.os.PersistableBundle
 import android.util.Log
@@ -53,6 +55,7 @@ class ProvisioningActivity : Activity() {
             return
         }
         Log.i(TAG, "Device Owner established; provisioning complete")
+        silenceDevice()
 
         // Primary enrollment-report path. ACTION_PROFILE_PROVISIONING_COMPLETE
         // (the "documented" hook, handled in AdminReceiver) does NOT reliably
@@ -86,6 +89,32 @@ class ProvisioningActivity : Activity() {
 
         setResult(RESULT_OK, Intent())
         finish()
+    }
+
+    /**
+     * Freshly-provisioned shop/demo devices shouldn't blast setup/notification
+     * sounds. Device Owner apps are auto-granted Notification Policy Access
+     * (DND control) without a user prompt, unlike normal apps.
+     */
+    private fun silenceDevice() {
+        try {
+            val audioManager = getSystemService(AUDIO_SERVICE) as AudioManager
+            val notificationManager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
+            if (notificationManager.isNotificationPolicyAccessGranted) {
+                audioManager.ringerMode = AudioManager.RINGER_MODE_SILENT
+            }
+            for (stream in intArrayOf(
+                AudioManager.STREAM_MUSIC,
+                AudioManager.STREAM_ALARM,
+                AudioManager.STREAM_NOTIFICATION,
+                AudioManager.STREAM_RING,
+                AudioManager.STREAM_SYSTEM,
+            )) {
+                audioManager.setStreamVolume(stream, 0, 0)
+            }
+        } catch (t: Throwable) {
+            Log.w(TAG, "Failed to silence device (non-fatal): ${t.message}")
+        }
     }
 
     companion object {
