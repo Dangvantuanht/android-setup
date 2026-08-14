@@ -1,4 +1,12 @@
-import type { EnrollmentSession, ModelReliabilityRow, StaffUser, WifiProfile, GmailAccount } from "./types";
+import type {
+  EnrollmentSession,
+  ModelReliabilityRow,
+  StaffUser,
+  WifiProfile,
+  GmailAccount,
+  ManualClaimCode,
+  TargetApp,
+} from "./types";
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const res = await fetch(path, {
@@ -75,6 +83,27 @@ export const api = {
     }),
   bulkDeleteGmailAccounts: (ids: string[]) =>
     request<{ deleted: number }>("/api/gmail-accounts/bulk-delete", {
+      method: "POST",
+      body: JSON.stringify({ ids }),
+    }),
+  releaseGmailAccount: (id: string) =>
+    request<void>(`/api/gmail-accounts/${id}/release`, { method: "POST" }),
+
+  listClaimCodes: () => request<ManualClaimCode[]>("/api/claim-codes"),
+  createClaimCode: (note?: string) =>
+    request<ManualClaimCode>("/api/claim-codes", { method: "POST", body: JSON.stringify({ note }) }),
+  revokeClaimCode: (id: string) => request<void>(`/api/claim-codes/${id}`, { method: "DELETE" }),
+
+  listTargetApps: () => request<TargetApp[]>("/api/target-apps"),
+  bulkAddTargetApps: (raw: string) =>
+    request<{ added: number; skipped: number }>("/api/target-apps/bulk-add", {
+      method: "POST",
+      body: JSON.stringify({ raw }),
+    }),
+  setTargetAppEnabled: (id: string, enabled: boolean) =>
+    request<TargetApp>(`/api/target-apps/${id}`, { method: "PATCH", body: JSON.stringify({ enabled }) }),
+  bulkDeleteTargetApps: (ids: string[]) =>
+    request<{ deleted: number }>("/api/target-apps/bulk-delete", {
       method: "POST",
       body: JSON.stringify({ ids }),
     }),

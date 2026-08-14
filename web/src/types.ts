@@ -63,7 +63,30 @@ export type GmailAccount = {
   status: GmailAccountStatus;
   assignedToSessionId: string | null;
   assignedToSession: { id: string; note: string | null; deviceModel: string | null } | null;
+  assignedToClaimCodeId: string | null;
+  assignedToClaimCode: { id: string; code: string; note: string | null } | null;
   assignedAt: string | null;
   note: string | null;
+  createdAt: string;
+};
+
+export type ClaimCodeStatus = "PENDING" | "CLAIMED" | "EXPIRED" | "REVOKED";
+
+export type ManualClaimCode = {
+  id: string;
+  code: string;
+  status: ClaimCodeStatus;
+  note: string | null;
+  createdAt: string;
+  expiresAt: string;
+  claimedAt: string | null;
+  gmailAccounts: { email: string; status: GmailAccountStatus }[];
+};
+
+export type TargetApp = {
+  id: string;
+  packageName: string;
+  label: string;
+  enabled: boolean;
   createdAt: string;
 };

@@ -17,6 +17,7 @@ model StaffUser {
   createdAt    DateTime  @default(now())
 
   sessions EnrollmentSession[]
+  claimCodes ManualClaimCode[]
 }
 
 // Singleton-ish key/value store for dashboard-wide toggles (e.g. auto-approve
@@ -47,11 +48,46 @@ model GmailAccount {
   status              String    @default("AVAILABLE") // AVAILABLE | ASSIGNED | FAILED
   assignedToSessionId String?
   assignedToSession   EnrollmentSession? @relation(fields: [assignedToSessionId], references: [id])
+  assignedToClaimCodeId String?
+  assignedToClaimCode  ManualClaimCode? @relation(fields: [assignedToClaimCodeId], references: [id])
   assignedAt          DateTime?
   note                String?
   createdAt           DateTime  @default(now())
 
   @@index([status])
+}
+
+// Manual counterpart to EnrollmentSession's token, for devices that were NOT
+// provisioned via the QR/DPC flow (activated normally by hand) but still run
+// the helper app afterward. Staff generate a short code on the dashboard,
+// type it once into the helper app — same claim/report API as the QR path,
+// just a human-typeable identifier instead of one auto-passed by the DPC.
+model ManualClaimCode {
+  id        String   @id @default(cuid())
+  code      String   @unique
+  status    String   @default("PENDING") // PENDING | CLAIMED | EXPIRED | REVOKED
+  note      String?
+  createdByStaffId String?
+  createdBy         StaffUser? @relation(fields: [createdByStaffId], references: [id])
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+  claimedAt DateTime?
+
+  gmailAccounts GmailAccount[]
+
+  @@index([status])
+  @@index([expiresAt])
+}
+
+// Server-managed list of apps the helper app installs after Google sign-in —
+// editable from the dashboard so changing the target app set never requires
+// rebuilding/redeploying the helper APK.
+model TargetApp {
+  id          String   @id @default(cuid())
+  packageName String   @unique
+  label       String
+  enabled     Boolean  @default(true)
+  createdAt   DateTime @default(now())
 }
 
 // SQLite has no native enum support in Prisma; status/type are validated

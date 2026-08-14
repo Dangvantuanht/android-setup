@@ -5,6 +5,8 @@ import { SessionsList } from "./pages/SessionsList";
 import { ModelReliability } from "./pages/ModelReliability";
 import { UsersManagement } from "./pages/UsersManagement";
 import { GmailAccounts } from "./pages/GmailAccounts";
+import { ManualClaimCodes } from "./pages/ManualClaimCodes";
+import { TargetApps } from "./pages/TargetApps";
 
 function Shell({ children }: { children: React.ReactNode }) {
   const { email, role, logout } = useAuth();
@@ -19,6 +21,8 @@ function Shell({ children }: { children: React.ReactNode }) {
           <NavLink to="/reports">Báo cáo model</NavLink>
           {role === "admin" && <NavLink to="/users">Người dùng</NavLink>}
           {role === "admin" && <NavLink to="/gmail-accounts">Tài khoản Gmail</NavLink>}
+          {role === "admin" && <NavLink to="/claim-codes">Mã kích hoạt thủ công</NavLink>}
+          {role === "admin" && <NavLink to="/target-apps">App cần cài</NavLink>}
         </nav>
         <button className="logout-link" onClick={() => logout()}>
           Đăng xuất ({email})
@@ -79,6 +83,26 @@ function AppRoutes() {
           <RequireAuth>
             <RequireAdmin>
               <GmailAccounts />
+            </RequireAdmin>
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/claim-codes"
+        element={
+          <RequireAuth>
+            <RequireAdmin>
+              <ManualClaimCodes />
+            </RequireAdmin>
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/target-apps"
+        element={
+          <RequireAuth>
+            <RequireAdmin>
+              <TargetApps />
             </RequireAdmin>
           </RequireAuth>
         }

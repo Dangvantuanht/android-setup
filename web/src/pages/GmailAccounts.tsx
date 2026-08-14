@@ -58,6 +58,12 @@ export function GmailAccounts() {
     await refresh();
   }
 
+  async function onRelease(id: string) {
+    if (!confirm("Trả tài khoản này về pool (Còn trống)?")) return;
+    await api.releaseGmailAccount(id);
+    await refresh();
+  }
+
   const available = accounts.filter((a) => a.status === "AVAILABLE").length;
   const assigned = accounts.filter((a) => a.status === "ASSIGNED").length;
 
@@ -121,28 +127,41 @@ export function GmailAccounts() {
             <th>Email</th>
             <th>Mật khẩu</th>
             <th>Trạng thái</th>
-            <th>Gán cho máy</th>
+            <th>Gán cho</th>
             <th>Thời gian gán</th>
             <th>Tạo lúc</th>
+            <th></th>
           </tr>
         </thead>
         <tbody>
-          {accounts.map((a) => (
-            <tr key={a.id}>
-              <td>
-                <input type="checkbox" checked={selectedIds.has(a.id)} onChange={() => toggleSelected(a.id)} />
-              </td>
-              <td>{a.email}</td>
-              <td>{showPasswords ? a.password : "••••••••"}</td>
-              <td>{STATUS_LABEL[a.status] ?? a.status}</td>
-              <td>{a.assignedToSession ? a.assignedToSession.note || a.assignedToSession.deviceModel || a.assignedToSession.id : "—"}</td>
-              <td>{a.assignedAt ? new Date(a.assignedAt).toLocaleString() : "—"}</td>
-              <td>{new Date(a.createdAt).toLocaleDateString()}</td>
-            </tr>
-          ))}
+          {accounts.map((a) => {
+            const assignedLabel = a.assignedToSession
+              ? `Máy: ${a.assignedToSession.note || a.assignedToSession.deviceModel || a.assignedToSession.id}`
+              : a.assignedToClaimCode
+                ? `Mã: ${a.assignedToClaimCode.code}${a.assignedToClaimCode.note ? ` (${a.assignedToClaimCode.note})` : ""}`
+                : "—";
+            return (
+              <tr key={a.id}>
+                <td>
+                  <input type="checkbox" checked={selectedIds.has(a.id)} onChange={() => toggleSelected(a.id)} />
+                </td>
+                <td>{a.email}</td>
+                <td>{showPasswords ? a.password : "••••••••"}</td>
+                <td>{STATUS_LABEL[a.status] ?? a.status}</td>
+                <td>{assignedLabel}</td>
+                <td>{a.assignedAt ? new Date(a.assignedAt).toLocaleString() : "—"}</td>
+                <td>{new Date(a.createdAt).toLocaleDateString()}</td>
+                <td>
+                  {a.status !== "AVAILABLE" && (
+                    <button onClick={() => onRelease(a.id)}>Trả lại pool</button>
+                  )}
+                </td>
+              </tr>
+            );
+          })}
           {accounts.length === 0 && (
             <tr>
-              <td colSpan={7}>Chưa có tài khoản nào.</td>
+              <td colSpan={8}>Chưa có tài khoản nào.</td>
             </tr>
           )}
         </tbody>

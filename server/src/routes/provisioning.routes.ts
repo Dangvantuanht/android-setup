@@ -8,9 +8,43 @@ import {
   getSessionByToken,
   markApkDownloaded,
 } from "../services/session.service.js";
-import { claimGmailAccount } from "../services/gmailAccount.service.js";
+import { claimGmailAccount, reportGmailOutcome, type Claimant } from "../services/gmailAccount.service.js";
+import {
+  getClaimCodeByCode,
+  markClaimCodeClaimed,
+} from "../services/manualClaimCode.service.js";
+import { listTargetApps } from "../services/targetApp.service.js";
 
 export const provisioningRouter = Router();
+
+/**
+ * The helper app identifies itself either via a DPC-issued enrollment token
+ * (QR/Device-Owner flow, requires the session to have actually finished
+ * ENROLLED) or a short manual claim code typed by staff (for devices
+ * activated by hand, requires the code to still be PENDING and unexpired).
+ * Claiming via code also marks it CLAIMED so it can't be reused.
+ */
+async function resolveClaimant(
+  token: unknown,
+  code: unknown,
+): Promise<Claimant | null> {
+  if (typeof token === "string") {
+    const session = await getSessionByToken(token);
+    if (!session || session.status !== "ENROLLED") return null;
+    return { sessionId: session.id };
+  }
+  if (typeof code === "string") {
+    const claimCode = await getClaimCodeByCode(code);
+    if (!claimCode) return null;
+    if (claimCode.status === "PENDING" && claimCode.expiresAt.getTime() >= Date.now()) {
+      await markClaimCodeClaimed(claimCode.id);
+      return { claimCodeId: claimCode.id };
+    }
+    if (claimCode.status === "CLAIMED") return { claimCodeId: claimCode.id };
+    return null;
+  }
+  return null;
+}
 
 const apkAbsolutePath = path.resolve(process.cwd(), config.dpc.apkPath);
 
@@ -66,25 +100,48 @@ provisioningRouter.post("/api/provisioning/heartbeat", async (req, res) => {
   res.status(200).json({ ok: result.accepted });
 });
 
-// Public but token-gated: called by the helper app once it's running on an
-// already-enrolled device to get one unused company Gmail account. Requires
-// ENROLLED (not just PENDING) so the pool can't be drained by probing tokens
-// for devices that haven't actually finished activating.
+// Public but identity-gated (DPC token or manual claim code — see
+// resolveClaimant): called by the helper app once it's running on a device
+// that has actually finished activating, to get one unused company Gmail
+// account.
 provisioningRouter.post("/api/provisioning/gmail-claim", async (req, res) => {
-  const { token } = req.body ?? {};
-  if (typeof token !== "string") {
-    res.status(400).json({ error: "token required" });
+  const { token, code } = req.body ?? {};
+  const claimant = await resolveClaimant(token, code);
+  if (!claimant) {
+    res.status(403).json({ error: "not enrolled / invalid or expired code" });
     return;
   }
-  const session = await getSessionByToken(token);
-  if (!session || session.status !== "ENROLLED") {
-    res.status(403).json({ error: "session not enrolled" });
-    return;
-  }
-  const account = await claimGmailAccount(session.id);
+  const account = await claimGmailAccount(claimant);
   if (!account) {
     res.status(409).json({ error: "no gmail accounts available" });
     return;
   }
   res.status(200).json(account);
+});
+
+// Public but identity-gated: the helper app reports back whether it actually
+// managed to sign in with the account it was handed, so staff can see
+// failures on the dashboard instead of accounts sitting "assigned" with an
+// unknown outcome forever.
+provisioningRouter.post("/api/provisioning/gmail-report", async (req, res) => {
+  const { token, code, email, outcome } = req.body ?? {};
+  if (typeof email !== "string" || (outcome !== "SUCCESS" && outcome !== "FAILED")) {
+    res.status(400).json({ error: "email and outcome (SUCCESS|FAILED) required" });
+    return;
+  }
+  const claimant = await resolveClaimant(token, code);
+  if (!claimant) {
+    res.status(403).json({ error: "not enrolled / invalid or expired code" });
+    return;
+  }
+  const ok = await reportGmailOutcome(email, outcome, claimant);
+  res.status(200).json({ ok });
+});
+
+// Fully public, no identity needed — just a static list of Play Store
+// packages to install, editable from the dashboard (see TargetApps.tsx) so
+// changing what gets installed never requires rebuilding the helper app.
+provisioningRouter.get("/api/provisioning/target-apps", async (_req, res) => {
+  const apps = await listTargetApps(true);
+  res.json(apps.map((a) => ({ packageName: a.packageName, label: a.label })));
 });

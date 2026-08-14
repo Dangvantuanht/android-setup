@@ -1,6 +1,11 @@
 import { Router } from "express";
 import { requireAdmin } from "../middleware/auth.middleware.js";
-import { listGmailAccounts, bulkAddGmailAccounts, deleteGmailAccounts } from "../services/gmailAccount.service.js";
+import {
+  listGmailAccounts,
+  bulkAddGmailAccounts,
+  deleteGmailAccounts,
+  releaseGmailAccount,
+} from "../services/gmailAccount.service.js";
 
 export const gmailAccountsRouter = Router();
 gmailAccountsRouter.use(requireAdmin);
@@ -27,4 +32,13 @@ gmailAccountsRouter.post("/bulk-delete", async (req, res) => {
   }
   const deleted = await deleteGmailAccounts(ids);
   res.json({ deleted });
+});
+
+gmailAccountsRouter.post("/:id/release", async (req, res) => {
+  const ok = await releaseGmailAccount(req.params.id);
+  if (!ok) {
+    res.status(409).json({ error: "account already available" });
+    return;
+  }
+  res.status(204).end();
 });
