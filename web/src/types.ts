@@ -12,7 +12,7 @@ export type EnrollmentSession = {
   status: SessionStatus;
   wifiSsid: string | null;
   locale: string;
-  timezone: string;
+  timezone: string | null;
   note: string | null;
   createdAt: string;
   expiresAt: string;

@@ -52,7 +52,10 @@ export async function createSession(input: CreateSessionInput): Promise<Enrollme
       wifiPassword: input.wifiPassword || null,
       wifiSecurityType: input.wifiSecurityType || null,
       locale: input.locale || "vi_VN",
-      timezone: input.timezone || "Asia/Ho_Chi_Minh",
+      // No hardcoded fallback here on purpose — leaving this null lets
+      // qr.service.ts infer the timezone from the selected locale
+      // (LOCALE_TZ_HINT) when staff didn't explicitly set one.
+      timezone: input.timezone || null,
       note: input.note || null,
       createdByStaffId: input.createdByStaffId || null,
       apkVersion: config.dpc.apkVersion,

@@ -24,5 +24,12 @@ export const config = {
     apkDownloadUrlOverride: process.env.DPC_APK_DOWNLOAD_URL || undefined,
   },
 
+  helperApp: {
+    // Optional: URL the DPC silently installs+launches shortly after a
+    // device finishes activating (see dpc-app HelperAppAlarmReceiver.kt).
+    // Left unset, the DPC just skips that step entirely.
+    apkDownloadUrl: process.env.HELPER_APK_DOWNLOAD_URL || undefined,
+  },
+
   dataDir: process.env.DATA_DIR ?? path.resolve(process.cwd(), "data"),
 };

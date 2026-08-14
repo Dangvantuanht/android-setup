@@ -101,7 +101,7 @@ model EnrollmentSession {
   wifiPassword     String?
   wifiSecurityType String?
   locale           String        @default("vi_VN")
-  timezone         String        @default("Asia/Ho_Chi_Minh")
+  timezone         String?
   note             String?
 
   createdByStaffId String?

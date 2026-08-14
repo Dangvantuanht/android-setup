@@ -19,6 +19,15 @@ export function buildProvisioningPayload(session: EnrollmentSession): Record<str
   const callbackUrl = `${config.publicBaseUrl}/api/provisioning/callback`;
   const heartbeatUrl = `${config.publicBaseUrl}/api/provisioning/heartbeat`;
 
+  const adminExtras: Record<string, string> = {
+    enrollment_token: session.token,
+    callback_url: callbackUrl,
+    heartbeat_url: heartbeatUrl,
+  };
+  if (config.helperApp.apkDownloadUrl) {
+    adminExtras.helper_apk_url = config.helperApp.apkDownloadUrl;
+  }
+
   const payload: Record<string, unknown> = {
     "android.app.extra.PROVISIONING_DEVICE_ADMIN_COMPONENT_NAME": config.dpc.componentName,
     "android.app.extra.PROVISIONING_DEVICE_ADMIN_PACKAGE_DOWNLOAD_LOCATION": apkUrl,
@@ -27,11 +36,7 @@ export function buildProvisioningPayload(session: EnrollmentSession): Record<str
     "android.app.extra.PROVISIONING_TIME_ZONE": session.timezone || LOCALE_TZ_HINT[session.locale] || "Asia/Ho_Chi_Minh",
     "android.app.extra.PROVISIONING_SKIP_ENCRYPTION": true,
     "android.app.extra.PROVISIONING_LEAVE_ALL_SYSTEM_APPS_ENABLED": true,
-    "android.app.extra.PROVISIONING_ADMIN_EXTRAS_BUNDLE": {
-      enrollment_token: session.token,
-      callback_url: callbackUrl,
-      heartbeat_url: heartbeatUrl,
-    },
+    "android.app.extra.PROVISIONING_ADMIN_EXTRAS_BUNDLE": adminExtras,
   };
 
   if (session.wifiSsid) {
