@@ -96,6 +96,12 @@ export function SessionsList() {
 
   const activeSession = sessions.find((s) => s.id === activeQrId);
 
+  // Auto-close the QR panel once the device finishes enrolling — no need to
+  // make staff click "Đóng" manually every time.
+  useEffect(() => {
+    if (activeSession?.status === "ENROLLED") setActiveQrId(null);
+  }, [activeSession?.status]);
+
   return (
     <div className="sessions-page">
       <form className="create-form" onSubmit={onCreate}>

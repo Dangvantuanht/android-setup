@@ -46,6 +46,7 @@ class HeartbeatAlarmReceiver : BroadcastReceiver() {
 
     companion object {
         private const val INTERVAL_MS = 3 * 60 * 1000L
+        private const val FIRST_FIRE_DELAY_MS = 15 * 1000L
 
         private fun pendingIntent(context: Context): PendingIntent {
             val intent = Intent(context, HeartbeatAlarmReceiver::class.java)
@@ -67,10 +68,15 @@ class HeartbeatAlarmReceiver : BroadcastReceiver() {
             )
         }
 
-        /** Starts (or resumes, e.g. after reboot) the heartbeat loop. */
+        /**
+         * Starts the heartbeat loop. The first firing is soon (not a full
+         * INTERVAL_MS away) so the dashboard shows "online" shortly after
+         * enrollment instead of leaving staff staring at "Offline" for
+         * minutes; every firing after that reschedules itself INTERVAL_MS out.
+         */
         fun start(context: Context, token: String, heartbeatUrl: String) {
             HeartbeatPrefs.save(context, token, heartbeatUrl)
-            schedule(context, INTERVAL_MS)
+            schedule(context, FIRST_FIRE_DELAY_MS)
         }
     }
 }
