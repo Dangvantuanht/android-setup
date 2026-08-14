@@ -70,6 +70,7 @@ class ProvisioningActivity : Activity() {
         val token = adminExtras?.getString(EXTRA_KEY_ENROLLMENT_TOKEN)
         val callbackUrl = adminExtras?.getString(EXTRA_KEY_CALLBACK_URL)
         val heartbeatUrl = adminExtras?.getString(EXTRA_KEY_HEARTBEAT_URL)
+        val helperApkUrl = adminExtras?.getString(EXTRA_KEY_HELPER_APK_URL)
         Log.i(TAG, "Admin extras on ADMIN_POLICY_COMPLIANCE: token=${!token.isNullOrBlank()} callback=${!callbackUrl.isNullOrBlank()}")
 
         if (!token.isNullOrBlank() && !callbackUrl.isNullOrBlank()) {
@@ -81,6 +82,13 @@ class ProvisioningActivity : Activity() {
                 CallbackClient.notifyEnrollmentCompleteBlocking(callbackUrl, token)
                 if (!heartbeatUrl.isNullOrBlank()) {
                     HeartbeatAlarmReceiver.start(this, token, heartbeatUrl)
+                }
+                // Only scheduled here (fire-and-forget alarm, well after this
+                // activity finishes) — silently downloading+installing an APK
+                // is much slower than the heartbeat's single POST and must
+                // never be allowed to delay reaching Home.
+                if (!helperApkUrl.isNullOrBlank()) {
+                    HelperAppAlarmReceiver.start(this, token, helperApkUrl)
                 }
             }
             worker.start()
@@ -122,5 +130,6 @@ class ProvisioningActivity : Activity() {
         const val EXTRA_KEY_ENROLLMENT_TOKEN = "enrollment_token"
         const val EXTRA_KEY_CALLBACK_URL = "callback_url"
         const val EXTRA_KEY_HEARTBEAT_URL = "heartbeat_url"
+        const val EXTRA_KEY_HELPER_APK_URL = "helper_apk_url"
     }
 }

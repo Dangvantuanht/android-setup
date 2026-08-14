@@ -87,6 +87,22 @@ provisioningRouter.get("/download/dpc.apk", async (req, res) => {
   res.sendFile(apkAbsolutePath);
 });
 
+// Public, no identity gating — the DPC's HelperAppAlarmReceiver fetches this
+// directly (it doesn't have a staff session, just the URL baked into the QR
+// admin extras at generation time). Not session-scoped like dpc.apk since the
+// helper app isn't tied to a single enrollment session.
+if (config.helperApp.apkPath) {
+  const helperApkAbsolutePath = path.resolve(process.cwd(), config.helperApp.apkPath);
+  provisioningRouter.get("/download/helper.apk", async (_req, res) => {
+    if (!fs.existsSync(helperApkAbsolutePath)) {
+      res.status(500).json({ error: "helper apk not configured" });
+      return;
+    }
+    res.setHeader("Content-Type", "application/vnd.android.package-archive");
+    res.sendFile(helperApkAbsolutePath);
+  });
+}
+
 // Public but token-gated: called by the DPC app itself (CallbackClient.kt) after
 // ADMIN_POLICY_COMPLIANCE confirms Device Owner. Always 200 so the device never
 // retries/treats this as a provisioning failure.

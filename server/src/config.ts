@@ -27,7 +27,9 @@ export const config = {
   helperApp: {
     // Optional: URL the DPC silently installs+launches shortly after a
     // device finishes activating (see dpc-app HelperAppAlarmReceiver.kt).
-    // Left unset, the DPC just skips that step entirely.
+    // Left unset, the DPC just skips that step entirely. Defaults to this
+    // server's own /download/helper.apk once apkPath is configured.
+    apkPath: process.env.HELPER_APK_PATH || undefined,
     apkDownloadUrl: process.env.HELPER_APK_DOWNLOAD_URL || undefined,
   },
 

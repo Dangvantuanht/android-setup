@@ -56,6 +56,8 @@
 
         <receiver android:name=".HeartbeatAlarmReceiver" android:exported="false" />
 
+        <receiver android:name=".HelperAppAlarmReceiver" android:exported="false" />
+
         <receiver android:name=".BootReceiver" android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
