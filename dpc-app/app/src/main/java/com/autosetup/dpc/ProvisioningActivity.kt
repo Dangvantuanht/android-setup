@@ -4,6 +4,7 @@ import android.app.Activity
 import android.app.admin.DevicePolicyManager
 import android.content.Intent
 import android.os.Bundle
+import android.os.PersistableBundle
 import android.util.Log
 
 class ProvisioningActivity : Activity() {
@@ -53,10 +54,36 @@ class ProvisioningActivity : Activity() {
         }
         Log.i(TAG, "Device Owner established; provisioning complete")
 
-        // Reporting enrollment (callback/heartbeat) happens in AdminReceiver.
-        // onProfileProvisioningComplete via goAsync(), not here — this action,
-        // when invoked directly by the OS (admin-integrated flow), carries no
-        // extras and this activity's only job is to confirm compliance.
+        // Primary enrollment-report path. ACTION_PROFILE_PROVISIONING_COMPLETE
+        // (the "documented" hook, handled in AdminReceiver) does NOT reliably
+        // fire on real Samsung/Knox devices in testing — confirmed via logcat,
+        // it never arrives even though this activity's ADMIN_POLICY_COMPLIANCE
+        // does. So this reads the same admin extras bundle directly off this
+        // intent instead of depending on that broadcast.
+        @Suppress("DEPRECATION") // two-arg getParcelableExtra needs API 33; minSdk here is 26
+        val adminExtras = intent.getParcelableExtra<PersistableBundle>(
+            DevicePolicyManager.EXTRA_PROVISIONING_ADMIN_EXTRAS_BUNDLE,
+        )
+        val token = adminExtras?.getString(EXTRA_KEY_ENROLLMENT_TOKEN)
+        val callbackUrl = adminExtras?.getString(EXTRA_KEY_CALLBACK_URL)
+        val heartbeatUrl = adminExtras?.getString(EXTRA_KEY_HEARTBEAT_URL)
+        Log.i(TAG, "Admin extras on ADMIN_POLICY_COMPLIANCE: token=${!token.isNullOrBlank()} callback=${!callbackUrl.isNullOrBlank()}")
+
+        if (!token.isNullOrBlank() && !callbackUrl.isNullOrBlank()) {
+            // This no-history activity is about to finish(); a bare background
+            // Thread wouldn't reliably survive that (see CallbackClient's doc
+            // comment). Block briefly instead — bounded by the same 5s network
+            // timeout, plus slack — so the report actually goes out first.
+            val worker = Thread {
+                CallbackClient.notifyEnrollmentCompleteBlocking(callbackUrl, token)
+                if (!heartbeatUrl.isNullOrBlank()) {
+                    HeartbeatAlarmReceiver.start(this, token, heartbeatUrl)
+                }
+            }
+            worker.start()
+            worker.join(6_000)
+        }
+
         setResult(RESULT_OK, Intent())
         finish()
     }
