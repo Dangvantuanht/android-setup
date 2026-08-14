@@ -18,6 +18,7 @@ const SAFE_SESSION_SELECT = {
   createdAt: true,
   expiresAt: true,
   enrolledAt: true,
+  downloadedAt: true,
   deviceModel: true,
   androidRelease: true,
   apkVersion: true,
@@ -66,6 +67,17 @@ export async function createSession(input: CreateSessionInput): Promise<Enrollme
   return session;
 }
 
+export async function createSessionsBulk(
+  input: CreateSessionInput,
+  count: number,
+): Promise<EnrollmentSession[]> {
+  const created: EnrollmentSession[] = [];
+  for (let i = 0; i < count; i++) {
+    created.push(await createSession(input));
+  }
+  return created;
+}
+
 export async function listSessions(status?: string) {
   return prisma.enrollmentSession.findMany({
     where: status ? { status: status as any } : undefined,
@@ -86,9 +98,18 @@ export async function getSessionByToken(token: string) {
   return prisma.enrollmentSession.findUnique({ where: { token } });
 }
 
-export async function revokeSession(id: string): Promise<EnrollmentSession | null> {
+export type RevokeResult =
+  | { ok: true; session: EnrollmentSession }
+  | { ok: false; reason: "not-found" | "not-pending" | "already-downloaded" };
+
+export async function revokeSession(id: string): Promise<RevokeResult> {
   const session = await prisma.enrollmentSession.findUnique({ where: { id } });
-  if (!session || session.status !== "PENDING") return null;
+  if (!session) return { ok: false, reason: "not-found" };
+  if (session.status !== "PENDING") return { ok: false, reason: "not-pending" };
+  // Once the device has the APK, it installs and finishes Device Owner setup
+  // on its own — revoking the session server-side can no longer stop it. Keep
+  // the session around so staff aren't misled into thinking "Thu hồi" worked.
+  if (session.downloadedAt) return { ok: false, reason: "already-downloaded" };
 
   const updated = await prisma.enrollmentSession.update({
     where: { id },
@@ -96,7 +117,30 @@ export async function revokeSession(id: string): Promise<EnrollmentSession | nul
   });
   await prisma.enrollmentEvent.create({ data: { sessionId: id, type: "REVOKED" } });
   emitSessionChange({ sessionId: id, status: updated.status });
-  return updated;
+  return { ok: true, session: updated };
+}
+
+export async function markApkDownloaded(token: string): Promise<void> {
+  const session = await prisma.enrollmentSession.findUnique({ where: { token } });
+  if (!session || session.downloadedAt) return;
+
+  await prisma.enrollmentSession.update({
+    where: { id: session.id },
+    data: { downloadedAt: new Date() },
+  });
+  await prisma.enrollmentEvent.create({ data: { sessionId: session.id, type: "APK_DOWNLOADED" } });
+}
+
+const DELETABLE_STATUSES = ["EXPIRED", "REVOKED", "FAILED"];
+
+/** Hard-deletes finished/dead sessions (history cleanup). Silently skips
+ * anything still PENDING or ENROLLED — those aren't clutter, they're either
+ * active or a real successful activation. */
+export async function deleteSessions(ids: string[]): Promise<number> {
+  const result = await prisma.enrollmentSession.deleteMany({
+    where: { id: { in: ids }, status: { in: DELETABLE_STATUSES } },
+  });
+  return result.count;
 }
 
 export async function completeSessionFromCallback(

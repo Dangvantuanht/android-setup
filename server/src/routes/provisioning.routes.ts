@@ -6,6 +6,7 @@ import {
   completeSessionFromCallback,
   recordHeartbeat,
   getSessionByToken,
+  markApkDownloaded,
 } from "../services/session.service.js";
 
 export const provisioningRouter = Router();
@@ -31,6 +32,7 @@ provisioningRouter.get("/download/dpc.apk", async (req, res) => {
       res.status(403).json({ error: "session no longer valid for download" });
       return;
     }
+    await markApkDownloaded(token);
   }
 
   res.setHeader("Content-Type", "application/vnd.android.package-archive");

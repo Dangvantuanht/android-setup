@@ -48,12 +48,18 @@ export const api = {
     wifiSecurityType?: string;
     locale?: string;
     note?: string;
+    count?: number;
   }) =>
-    request<{ id: string; token: string; status: string; expiresAt: string; qrPngUrl: string }>(
+    request<{ sessions: { id: string; token: string; status: string; expiresAt: string; qrPngUrl: string }[] }>(
       "/api/sessions",
       { method: "POST", body: JSON.stringify(input) },
     ),
   revokeSession: (id: string) => request<void>(`/api/sessions/${id}`, { method: "DELETE" }),
+  bulkDeleteSessions: (ids: string[]) =>
+    request<{ deleted: number }>("/api/sessions/bulk-delete", {
+      method: "POST",
+      body: JSON.stringify({ ids }),
+    }),
   modelReliability: () => request<ModelReliabilityRow[]>("/api/sessions/reports/model-reliability"),
 
   listWifiProfiles: () => request<WifiProfile[]>("/api/wifi-profiles"),

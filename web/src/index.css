@@ -175,6 +175,17 @@ body {
   flex: 1;
 }
 
+.bulk-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  background: white;
+  padding: 0.6rem 1rem;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  font-size: 0.85rem;
+}
+
 button {
   cursor: pointer;
   padding: 0.4rem 0.9rem;

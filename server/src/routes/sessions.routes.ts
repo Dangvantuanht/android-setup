@@ -1,9 +1,10 @@
 import { Router } from "express";
 import {
-  createSession,
+  createSessionsBulk,
   listSessions,
   getSessionDetail,
   revokeSession,
+  deleteSessions,
   modelReliabilityReport,
 } from "../services/session.service.js";
 import { renderProvisioningQrPng } from "../services/qr.service.js";
@@ -14,24 +15,37 @@ import { prisma } from "../db/prisma.js";
 export const sessionsRouter = Router();
 sessionsRouter.use(requireAuth);
 
+const MAX_BULK_CREATE = 50;
+
 sessionsRouter.post("/", async (req, res) => {
-  const { wifiSsid, wifiPassword, wifiSecurityType, locale, timezone, note } = req.body ?? {};
-  const session = await createSession({
-    wifiSsid,
-    wifiPassword,
-    wifiSecurityType,
-    locale,
-    timezone,
-    note,
-    createdByStaffId: req.session.staffId,
-  });
+  const { wifiSsid, wifiPassword, wifiSecurityType, locale, timezone, note, count } = req.body ?? {};
+  const requested = typeof count === "number" && Number.isFinite(count) ? Math.trunc(count) : 1;
+  const clamped = Math.min(Math.max(requested, 1), MAX_BULK_CREATE);
+
+  const sessions = await createSessionsBulk(
+    { wifiSsid, wifiPassword, wifiSecurityType, locale, timezone, note, createdByStaffId: req.session.staffId },
+    clamped,
+  );
+
   res.status(201).json({
-    id: session.id,
-    token: session.token,
-    status: session.status,
-    expiresAt: session.expiresAt,
-    qrPngUrl: `/api/sessions/${session.id}/qr.png`,
+    sessions: sessions.map((session) => ({
+      id: session.id,
+      token: session.token,
+      status: session.status,
+      expiresAt: session.expiresAt,
+      qrPngUrl: `/api/sessions/${session.id}/qr.png`,
+    })),
   });
+});
+
+sessionsRouter.post("/bulk-delete", async (req, res) => {
+  const { ids } = req.body ?? {};
+  if (!Array.isArray(ids) || ids.some((id) => typeof id !== "string")) {
+    res.status(400).json({ error: "ids must be a string array" });
+    return;
+  }
+  const deleted = await deleteSessions(ids);
+  res.json({ deleted });
 });
 
 sessionsRouter.get("/", async (req, res) => {
@@ -86,9 +100,14 @@ sessionsRouter.get("/:id/qr.png", async (req, res) => {
 });
 
 sessionsRouter.delete("/:id", async (req, res) => {
-  const updated = await revokeSession(req.params.id);
-  if (!updated) {
-    res.status(409).json({ error: "session not revocable (not pending)" });
+  const result = await revokeSession(req.params.id);
+  if (!result.ok) {
+    const messages: Record<string, string> = {
+      "not-found": "session not found",
+      "not-pending": "session not revocable (not pending)",
+      "already-downloaded": "device already downloaded the APK — revoking can no longer stop it",
+    };
+    res.status(409).json({ error: messages[result.reason] });
     return;
   }
   res.status(204).end();

@@ -54,6 +54,8 @@ export function SessionsList() {
   const [wifiProfiles, setWifiProfiles] = useState<WifiProfile[]>([]);
   const [selectedWifiProfileId, setSelectedWifiProfileId] = useState("");
   const [saveWifi, setSaveWifi] = useState(false);
+  const [count, setCount] = useState(1);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   async function refresh() {
     setSessions(await api.listSessions());
@@ -101,28 +103,57 @@ export function SessionsList() {
         await api.createWifiProfile({ label: wifiSsid.trim(), ssid: wifiSsid.trim(), password: wifiPassword || undefined });
         await refreshWifiProfiles();
       }
-      const created = await api.createSession({
+      const { sessions: created } = await api.createSession({
         wifiSsid: wifiSsid || undefined,
         wifiPassword: wifiPassword || undefined,
         note: note || undefined,
         locale,
+        count,
       });
       setWifiSsid("");
       setWifiPassword("");
       setNote("");
       setSelectedWifiProfileId("");
       setSaveWifi(false);
+      setCount(1);
       await refresh();
-      setActiveQrId(created.id);
+      // Only auto-open the QR panel for a single QR — with a batch, staff
+      // pick each one from the table ("Xem QR") instead.
+      if (created.length === 1) setActiveQrId(created[0].id);
     } finally {
       setCreating(false);
     }
   }
 
   async function onRevoke(id: string) {
-    await api.revokeSession(id);
-    if (activeQrId === id) setActiveQrId(null);
+    try {
+      await api.revokeSession(id);
+      if (activeQrId === id) setActiveQrId(null);
+      await refresh();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Không thu hồi được");
+    }
+  }
+
+  function toggleSelected(id: string) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  async function onBulkDelete() {
+    const requested = selectedIds.size;
+    if (requested === 0) return;
+    if (!confirm(`Xoá vĩnh viễn ${requested} mục đã chọn khỏi lịch sử?`)) return;
+    const { deleted } = await api.bulkDeleteSessions(Array.from(selectedIds));
+    setSelectedIds(new Set());
     await refresh();
+    if (deleted < requested) {
+      alert("Một số mục đang chờ hoặc đã kích hoạt không thể xoá, chỉ xoá được các mục đã hết hạn/thu hồi/lỗi.");
+    }
   }
 
   const activeSession = sessions.find((s) => s.id === activeQrId);
@@ -197,6 +228,16 @@ export function SessionsList() {
               ))}
             </select>
           </label>
+          <label>
+            Số lượng QR
+            <input
+              type="number"
+              min={1}
+              max={50}
+              value={count}
+              onChange={(e) => setCount(Math.min(50, Math.max(1, Number(e.target.value) || 1)))}
+            />
+          </label>
         </div>
         {!selectedWifiProfileId && (
           <label className="checkbox-label">
@@ -205,7 +246,7 @@ export function SessionsList() {
           </label>
         )}
         <button type="submit" disabled={creating}>
-          {creating ? "Đang tạo..." : "Tạo QR"}
+          {creating ? "Đang tạo..." : count > 1 ? `Tạo ${count} QR` : "Tạo QR"}
         </button>
       </form>
 
@@ -221,9 +262,19 @@ export function SessionsList() {
         </div>
       )}
 
+      {selectedIds.size > 0 && (
+        <div className="bulk-actions">
+          <span>{selectedIds.size} mục đã chọn</span>
+          <button className="danger" onClick={onBulkDelete}>
+            Xoá đã chọn
+          </button>
+        </div>
+      )}
+
       <table className="sessions-table">
         <thead>
           <tr>
+            <th></th>
             <th>Trạng thái</th>
             <th>Tên máy</th>
             <th>Mẫu máy</th>
@@ -238,37 +289,54 @@ export function SessionsList() {
           </tr>
         </thead>
         <tbody>
-          {sessions.map((s) => (
-            <tr key={s.id} className={`status-${s.status.toLowerCase()}`}>
-              <td>{STATUS_LABEL[s.status] ?? s.status}</td>
-              <td>{s.note || s.deviceModel || "—"}</td>
-              <td>{s.deviceModel || "—"}</td>
-              <td>{s.batteryLevel != null ? `${s.batteryLevel}%` : "—"}</td>
-              <td>{s.status === "ENROLLED" ? elapsedSince(s.enrolledAt) : "—"}</td>
-              <td>
-                {s.status === "ENROLLED"
-                  ? isOnline(s.lastSeenAt) ? "🟢 Online" : "⚪ Offline"
-                  : "—"}
-              </td>
-              <td>{s.wifiSsid || "—"}</td>
-              <td>{s.note || "—"}</td>
-              <td>{new Date(s.createdAt).toLocaleTimeString()}</td>
-              <td>{s.status === "PENDING" ? timeLeft(s.expiresAt) : "—"}</td>
-              <td>
-                {s.status === "PENDING" && (
-                  <>
-                    <button onClick={() => setActiveQrId(s.id)}>Xem QR</button>
-                    <button className="danger" onClick={() => onRevoke(s.id)}>
-                      Thu hồi
-                    </button>
-                  </>
-                )}
-              </td>
-            </tr>
-          ))}
+          {sessions.map((s) => {
+            const deletable = ["EXPIRED", "REVOKED", "FAILED"].includes(s.status);
+            return (
+              <tr key={s.id} className={`status-${s.status.toLowerCase()}`}>
+                <td>
+                  {deletable && (
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.has(s.id)}
+                      onChange={() => toggleSelected(s.id)}
+                    />
+                  )}
+                </td>
+                <td>{STATUS_LABEL[s.status] ?? s.status}</td>
+                <td>{s.note || s.deviceModel || "—"}</td>
+                <td>{s.deviceModel || "—"}</td>
+                <td>{s.batteryLevel != null ? `${s.batteryLevel}%` : "—"}</td>
+                <td>{s.status === "ENROLLED" ? elapsedSince(s.enrolledAt) : "—"}</td>
+                <td>
+                  {s.status === "ENROLLED"
+                    ? isOnline(s.lastSeenAt) ? "🟢 Online" : "⚪ Offline"
+                    : "—"}
+                </td>
+                <td>{s.wifiSsid || "—"}</td>
+                <td>{s.note || "—"}</td>
+                <td>{new Date(s.createdAt).toLocaleTimeString()}</td>
+                <td>{s.status === "PENDING" ? timeLeft(s.expiresAt) : "—"}</td>
+                <td>
+                  {s.status === "PENDING" && (
+                    <>
+                      <button onClick={() => setActiveQrId(s.id)}>Xem QR</button>
+                      <button
+                        className="danger"
+                        disabled={!!s.downloadedAt}
+                        title={s.downloadedAt ? "Máy đã tải APK — không thể thu hồi được nữa" : undefined}
+                        onClick={() => onRevoke(s.id)}
+                      >
+                        Thu hồi
+                      </button>
+                    </>
+                  )}
+                </td>
+              </tr>
+            );
+          })}
           {sessions.length === 0 && (
             <tr>
-              <td colSpan={11}>Chưa có phiên nào.</td>
+              <td colSpan={12}>Chưa có phiên nào.</td>
             </tr>
           )}
         </tbody>

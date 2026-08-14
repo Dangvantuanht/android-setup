@@ -17,6 +17,7 @@ export type EnrollmentSession = {
   createdAt: string;
   expiresAt: string;
   enrolledAt: string | null;
+  downloadedAt: string | null;
   deviceModel: string | null;
   androidRelease: string | null;
   apkVersion: string | null;

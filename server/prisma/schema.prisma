@@ -56,6 +56,7 @@ model EnrollmentSession {
   createdAt   DateTime  @default(now())
   expiresAt   DateTime
   enrolledAt  DateTime?
+  downloadedAt DateTime?
 
   deviceModel     String?
   androidRelease  String?
@@ -72,7 +73,7 @@ model EnrollmentSession {
 model EnrollmentEvent {
   id          String   @id @default(cuid())
   sessionId   String
-  session     EnrollmentSession @relation(fields: [sessionId], references: [id])
+  session     EnrollmentSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
   type        String
   payloadJson String?
   createdAt   DateTime @default(now())
