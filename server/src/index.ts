@@ -16,6 +16,11 @@ fs.mkdirSync(config.dataDir, { recursive: true });
 const SQLiteStore = connectSqlite3(session);
 
 const app = express();
+// Behind Caddy: TLS terminates at the proxy, so Node only ever sees plain
+// HTTP on the internal hop. Without this, req.secure is always false, and
+// express-session silently refuses to set cookie.secure=true cookies at all
+// (no Set-Cookie header, not even an insecure one) once NODE_ENV=production.
+app.set("trust proxy", 1);
 app.use(express.json());
 app.use((req, res, next) => {
   res.on("finish", () => {
