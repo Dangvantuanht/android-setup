@@ -18,12 +18,36 @@ function timeLeft(expiresAt: string): string {
   return `${mins}:${secs.toString().padStart(2, "0")}`;
 }
 
+// Heartbeat fires every 3 min (see dpc-app HeartbeatAlarmReceiver) — allow some slack.
+const ONLINE_THRESHOLD_MS = 7 * 60_000;
+
+function elapsedSince(dateStr: string | null): string {
+  if (!dateStr) return "—";
+  const mins = Math.floor((Date.now() - new Date(dateStr).getTime()) / 60000);
+  if (mins < 1) return "vừa xong";
+  if (mins < 60) return `${mins} phút`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours} giờ`;
+  return `${Math.floor(hours / 24)} ngày`;
+}
+
+function isOnline(lastSeenAt: string | null): boolean {
+  return !!lastSeenAt && Date.now() - new Date(lastSeenAt).getTime() < ONLINE_THRESHOLD_MS;
+}
+
+const LOCALES = [
+  { value: "vi_VN", label: "Tiếng Việt" },
+  { value: "ja_JP", label: "日本語" },
+  { value: "en_US", label: "English" },
+];
+
 export function SessionsList() {
   const [sessions, setSessions] = useState<EnrollmentSession[]>([]);
   const [activeQrId, setActiveQrId] = useState<string | null>(null);
   const [wifiSsid, setWifiSsid] = useState("");
   const [wifiPassword, setWifiPassword] = useState("");
   const [note, setNote] = useState("");
+  const [locale, setLocale] = useState("vi_VN");
   const [creating, setCreating] = useState(false);
   const [, forceTick] = useState(0);
 
@@ -52,6 +76,7 @@ export function SessionsList() {
         wifiSsid: wifiSsid || undefined,
         wifiPassword: wifiPassword || undefined,
         note: note || undefined,
+        locale,
       });
       setWifiSsid("");
       setWifiPassword("");
@@ -88,6 +113,16 @@ export function SessionsList() {
             Ghi chú (IMEI, model...)
             <input value={note} onChange={(e) => setNote(e.target.value)} />
           </label>
+          <label>
+            Ngôn ngữ máy
+            <select value={locale} onChange={(e) => setLocale(e.target.value)}>
+              {LOCALES.map((l) => (
+                <option key={l.value} value={l.value}>
+                  {l.label}
+                </option>
+              ))}
+            </select>
+          </label>
         </div>
         <button type="submit" disabled={creating}>
           {creating ? "Đang tạo..." : "Tạo QR"}
@@ -110,9 +145,13 @@ export function SessionsList() {
         <thead>
           <tr>
             <th>Trạng thái</th>
+            <th>Tên máy</th>
+            <th>Mẫu máy</th>
+            <th>Pin</th>
+            <th>Từ lúc active</th>
+            <th>Online</th>
             <th>Wi-Fi</th>
             <th>Ghi chú</th>
-            <th>Máy</th>
             <th>Tạo lúc</th>
             <th>Hết hạn / còn lại</th>
             <th></th>
@@ -122,9 +161,17 @@ export function SessionsList() {
           {sessions.map((s) => (
             <tr key={s.id} className={`status-${s.status.toLowerCase()}`}>
               <td>{STATUS_LABEL[s.status] ?? s.status}</td>
+              <td>{s.note || s.deviceModel || "—"}</td>
+              <td>{s.deviceModel || "—"}</td>
+              <td>{s.batteryLevel != null ? `${s.batteryLevel}%` : "—"}</td>
+              <td>{s.status === "ENROLLED" ? elapsedSince(s.enrolledAt) : "—"}</td>
+              <td>
+                {s.status === "ENROLLED"
+                  ? isOnline(s.lastSeenAt) ? "🟢 Online" : "⚪ Offline"
+                  : "—"}
+              </td>
               <td>{s.wifiSsid || "—"}</td>
               <td>{s.note || "—"}</td>
-              <td>{s.deviceModel ? `${s.deviceModel} (Android ${s.androidRelease})` : "—"}</td>
               <td>{new Date(s.createdAt).toLocaleTimeString()}</td>
               <td>{s.status === "PENDING" ? timeLeft(s.expiresAt) : "—"}</td>
               <td>
@@ -141,7 +188,7 @@ export function SessionsList() {
           ))}
           {sessions.length === 0 && (
             <tr>
-              <td colSpan={7}>Chưa có phiên nào.</td>
+              <td colSpan={11}>Chưa có phiên nào.</td>
             </tr>
           )}
         </tbody>

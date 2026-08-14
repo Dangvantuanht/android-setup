@@ -18,6 +18,10 @@ export const config = {
     apkPath: required("DPC_APK_PATH"),
     apkVersion: required("DPC_APK_VERSION"),
     checksumBase64Url: required("DPC_APK_CHECKSUM"),
+    // Optional: host the APK somewhere other than this server's own
+    // /download/dpc.apk (e.g. a public raw-file URL) — useful for testing
+    // before this server itself has a public HTTPS address.
+    apkDownloadUrlOverride: process.env.DPC_APK_DOWNLOAD_URL || undefined,
   },
 
   dataDir: process.env.DATA_DIR ?? path.resolve(process.cwd(), "data"),

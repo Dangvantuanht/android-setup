@@ -22,12 +22,14 @@ class AdminReceiver : DeviceAdminReceiver() {
         )
         val token = adminExtras?.getString(ProvisioningActivity.EXTRA_KEY_ENROLLMENT_TOKEN)
         val callbackUrl = adminExtras?.getString(ProvisioningActivity.EXTRA_KEY_CALLBACK_URL)
+        val heartbeatUrl = adminExtras?.getString(ProvisioningActivity.EXTRA_KEY_HEARTBEAT_URL)
 
         context.startActivity(Intent(context, ProvisioningActivity::class.java).apply {
             action = ACTION_ADMIN_POLICY_COMPLIANCE
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             putExtra(ProvisioningActivity.EXTRA_KEY_ENROLLMENT_TOKEN, token)
             putExtra(ProvisioningActivity.EXTRA_KEY_CALLBACK_URL, callbackUrl)
+            putExtra(ProvisioningActivity.EXTRA_KEY_HEARTBEAT_URL, heartbeatUrl)
         })
     }
 

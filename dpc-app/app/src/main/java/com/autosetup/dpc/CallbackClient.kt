@@ -25,21 +25,38 @@ object CallbackClient {
                     put("model", Build.MODEL)
                     put("androidRelease", Build.VERSION.RELEASE)
                 }.toString().toByteArray(StandardCharsets.UTF_8)
-
-                val connection = (URL(callbackUrl).openConnection() as HttpURLConnection).apply {
-                    requestMethod = "POST"
-                    doOutput = true
-                    connectTimeout = TIMEOUT_MS
-                    readTimeout = TIMEOUT_MS
-                    setRequestProperty("Content-Type", "application/json")
-                }
-
-                connection.outputStream.use { it.write(body) }
-                Log.i(TAG, "Callback responded with ${connection.responseCode}")
-                connection.disconnect()
+                postJson(callbackUrl, body)
             } catch (t: Throwable) {
                 Log.w(TAG, "Callback failed (non-fatal): ${t.message}")
             }
         }.start()
+    }
+
+    fun sendHeartbeat(heartbeatUrl: String, token: String, batteryLevel: Int?) {
+        Thread {
+            try {
+                val body = JSONObject().apply {
+                    put("token", token)
+                    put("model", Build.MODEL)
+                    if (batteryLevel != null) put("batteryLevel", batteryLevel)
+                }.toString().toByteArray(StandardCharsets.UTF_8)
+                postJson(heartbeatUrl, body)
+            } catch (t: Throwable) {
+                Log.w(TAG, "Heartbeat failed (non-fatal): ${t.message}")
+            }
+        }.start()
+    }
+
+    private fun postJson(url: String, body: ByteArray) {
+        val connection = (URL(url).openConnection() as HttpURLConnection).apply {
+            requestMethod = "POST"
+            doOutput = true
+            connectTimeout = TIMEOUT_MS
+            readTimeout = TIMEOUT_MS
+            setRequestProperty("Content-Type", "application/json")
+        }
+        connection.outputStream.use { it.write(body) }
+        Log.i(TAG, "$url responded with ${connection.responseCode}")
+        connection.disconnect()
     }
 }

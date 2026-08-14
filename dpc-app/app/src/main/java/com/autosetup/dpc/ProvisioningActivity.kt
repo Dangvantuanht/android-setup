@@ -59,8 +59,12 @@ class ProvisioningActivity : Activity() {
         // directly it won't carry these, and there's nothing to report yet.
         val token = intent.getStringExtra(EXTRA_KEY_ENROLLMENT_TOKEN)
         val callbackUrl = intent.getStringExtra(EXTRA_KEY_CALLBACK_URL)
+        val heartbeatUrl = intent.getStringExtra(EXTRA_KEY_HEARTBEAT_URL)
         if (!token.isNullOrBlank() && !callbackUrl.isNullOrBlank()) {
             CallbackClient.notifyEnrollmentComplete(callbackUrl, token)
+        }
+        if (!token.isNullOrBlank() && !heartbeatUrl.isNullOrBlank()) {
+            HeartbeatAlarmReceiver.start(this, token, heartbeatUrl)
         }
 
         setResult(RESULT_OK, Intent())
@@ -71,5 +75,6 @@ class ProvisioningActivity : Activity() {
         private const val TAG = "AutoSetupDPC"
         const val EXTRA_KEY_ENROLLMENT_TOKEN = "enrollment_token"
         const val EXTRA_KEY_CALLBACK_URL = "callback_url"
+        const val EXTRA_KEY_HEARTBEAT_URL = "heartbeat_url"
     }
 }

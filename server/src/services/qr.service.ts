@@ -9,8 +9,9 @@ const LOCALE_TZ_HINT: Record<string, string> = {
 };
 
 export function buildProvisioningPayload(session: EnrollmentSession): Record<string, unknown> {
-  const apkUrl = `${config.publicBaseUrl}/download/dpc.apk`;
+  const apkUrl = config.dpc.apkDownloadUrlOverride ?? `${config.publicBaseUrl}/download/dpc.apk`;
   const callbackUrl = `${config.publicBaseUrl}/api/provisioning/callback`;
+  const heartbeatUrl = `${config.publicBaseUrl}/api/provisioning/heartbeat`;
 
   const payload: Record<string, unknown> = {
     "android.app.extra.PROVISIONING_DEVICE_ADMIN_COMPONENT_NAME": config.dpc.componentName,
@@ -23,6 +24,7 @@ export function buildProvisioningPayload(session: EnrollmentSession): Record<str
     "android.app.extra.PROVISIONING_ADMIN_EXTRAS_BUNDLE": {
       enrollment_token: session.token,
       callback_url: callbackUrl,
+      heartbeat_url: heartbeatUrl,
     },
   };
 

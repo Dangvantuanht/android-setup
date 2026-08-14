@@ -41,6 +41,8 @@ model EnrollmentSession {
   deviceModel     String?
   androidRelease  String?
   apkVersion      String?
+  batteryLevel    Int?
+  lastSeenAt      DateTime?
 
   events EnrollmentEvent[]
 

@@ -138,7 +138,8 @@ body {
   font-size: 0.85rem;
 }
 
-.create-form input {
+.create-form input,
+.create-form select {
   padding: 0.4rem;
   border: 1px solid #ccc;
   border-radius: 4px;

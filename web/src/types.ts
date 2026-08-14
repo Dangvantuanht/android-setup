@@ -9,7 +9,6 @@ export type EnrollmentEvent = {
 
 export type EnrollmentSession = {
   id: string;
-  token: string;
   status: SessionStatus;
   wifiSsid: string | null;
   locale: string;
@@ -21,6 +20,8 @@ export type EnrollmentSession = {
   deviceModel: string | null;
   androidRelease: string | null;
   apkVersion: string | null;
+  batteryLevel: number | null;
+  lastSeenAt: string | null;
   events?: EnrollmentEvent[];
 };
 

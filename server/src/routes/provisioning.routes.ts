@@ -2,7 +2,7 @@ import { Router } from "express";
 import fs from "node:fs";
 import path from "node:path";
 import { config } from "../config.js";
-import { completeSessionFromCallback } from "../services/session.service.js";
+import { completeSessionFromCallback, recordHeartbeat } from "../services/session.service.js";
 
 export const provisioningRouter = Router();
 
@@ -28,5 +28,18 @@ provisioningRouter.post("/api/provisioning/callback", async (req, res) => {
     return;
   }
   const result = await completeSessionFromCallback(token, model, androidRelease);
+  res.status(200).json({ ok: result.accepted });
+});
+
+// Public but token-gated: periodic check-in from the DPC app's heartbeat alarm
+// (see dpc-app HeartbeatAlarmReceiver.kt). Always 200, never blocks the device.
+provisioningRouter.post("/api/provisioning/heartbeat", async (req, res) => {
+  const { token, batteryLevel, model } = req.body ?? {};
+  if (typeof token !== "string") {
+    res.status(200).json({ ok: false });
+    return;
+  }
+  const level = typeof batteryLevel === "number" ? Math.round(batteryLevel) : undefined;
+  const result = await recordHeartbeat(token, level, typeof model === "string" ? model : undefined);
   res.status(200).json({ ok: result.accepted });
 });

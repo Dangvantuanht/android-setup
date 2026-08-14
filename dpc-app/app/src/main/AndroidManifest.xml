@@ -4,10 +4,14 @@
     <!-- Needed by CallbackClient to report enrollment completion back to the web backend. -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <!-- Needed by HeartbeatAlarmReceiver's periodic check-in loop (device owner apps are
+         auto-granted this without a user prompt). -->
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
     <application
         android:allowBackup="false"
-        android:label="Auto Setup"
+        android:label="Giftly Auto Setup"
         android:supportsRtl="true"
         android:theme="@android:style/Theme.Material.Light.NoActionBar">
 
@@ -15,7 +19,7 @@
             android:name=".AdminReceiver"
             android:description="@string/admin_description"
             android:exported="true"
-            android:label="Auto Setup"
+            android:label="Giftly Auto Setup"
             android:permission="android.permission.BIND_DEVICE_ADMIN">
             <meta-data
                 android:name="android.app.device_admin"
@@ -47,5 +51,13 @@
             android:excludeFromRecents="true"
             android:exported="true"
             android:noHistory="true" />
+
+        <receiver android:name=".HeartbeatAlarmReceiver" android:exported="false" />
+
+        <receiver android:name=".BootReceiver" android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+            </intent-filter>
+        </receiver>
     </application>
 </manifest>

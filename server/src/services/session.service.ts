@@ -2,7 +2,28 @@ import crypto from "node:crypto";
 import { prisma } from "../db/prisma.js";
 import { config } from "../config.js";
 import { emitSessionChange } from "./eventBus.js";
-import type { EnrollmentSession } from "@prisma/client";
+import type { EnrollmentSession, Prisma } from "@prisma/client";
+
+// Excludes `token` and `wifiPassword` — these must never leave the server
+// outside the QR PNG itself and the one-time create response. Returning them
+// in list/detail responses would leak every session's secrets to any staff
+// member who opens devtools, not just the one who created it.
+const SAFE_SESSION_SELECT = {
+  id: true,
+  status: true,
+  wifiSsid: true,
+  locale: true,
+  timezone: true,
+  note: true,
+  createdAt: true,
+  expiresAt: true,
+  enrolledAt: true,
+  deviceModel: true,
+  androidRelease: true,
+  apkVersion: true,
+  batteryLevel: true,
+  lastSeenAt: true,
+} satisfies Prisma.EnrollmentSessionSelect;
 
 export type CreateSessionInput = {
   wifiSsid?: string;
@@ -50,13 +71,14 @@ export async function listSessions(status?: string) {
     where: status ? { status: status as any } : undefined,
     orderBy: { createdAt: "desc" },
     take: 200,
+    select: SAFE_SESSION_SELECT,
   });
 }
 
 export async function getSessionDetail(id: string) {
   return prisma.enrollmentSession.findUnique({
     where: { id },
-    include: { events: { orderBy: { createdAt: "asc" } } },
+    select: { ...SAFE_SESSION_SELECT, events: { orderBy: { createdAt: "asc" } } },
   });
 }
 
@@ -112,6 +134,27 @@ export async function completeSessionFromCallback(
       sessionId: session.id,
       type: "CALLBACK_OK",
       payloadJson: JSON.stringify({ deviceModel, androidRelease }),
+    },
+  });
+
+  emitSessionChange({ sessionId: session.id, status: updated.status });
+  return { accepted: true };
+}
+
+export async function recordHeartbeat(
+  token: string,
+  batteryLevel: number | undefined,
+  deviceModel: string | undefined,
+): Promise<{ accepted: boolean }> {
+  const session = await prisma.enrollmentSession.findUnique({ where: { token } });
+  if (!session || session.status !== "ENROLLED") return { accepted: false };
+
+  const updated = await prisma.enrollmentSession.update({
+    where: { id: session.id },
+    data: {
+      lastSeenAt: new Date(),
+      ...(batteryLevel !== undefined ? { batteryLevel } : {}),
+      ...(deviceModel ? { deviceModel } : {}),
     },
   });
 
