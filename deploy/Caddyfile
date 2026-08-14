@@ -2,7 +2,7 @@
 # Copy to /etc/caddy/Caddyfile on the VPS, replace the domain, then:
 #   sudo systemctl reload caddy
 
-provisioning.example.com {
+auto.giftly.biz {
     reverse_proxy 127.0.0.1:3000
 
     encode gzip
