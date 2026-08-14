@@ -10,6 +10,21 @@ import java.nio.charset.StandardCharsets
 data class GmailCredential(val email: String, val password: String)
 data class TargetApp(val packageName: String, val label: String)
 
+// Mirrors the server's discriminated resolveClaimant() reasons (see
+// provisioning.routes.ts) so the device can tell "typed the wrong code" apart
+// from "this code timed out — go get a fresh one" instead of one generic
+// failure message that left staff guessing what to do next.
+sealed class ClaimResult {
+    data class Success(val credential: GmailCredential) : ClaimResult()
+    data class Failure(val reason: String) : ClaimResult() {
+        // "expired" | "not_found" | "revoked" | "invalid" (bad code, needs a
+        // new one) vs "no gmail accounts available" (pool exhausted — same
+        // code is still fine, nothing to re-enter) vs "network"/"unknown".
+        val needsNewCode: Boolean
+            get() = reason == "expired" || reason == "not_found" || reason == "revoked" || reason == "invalid"
+    }
+}
+
 /** Talks to the provisioning server's public device-facing endpoints — same
  * server the DPC app already reports to (see dpc-app's CallbackClient.kt). */
 object ApiClient {
@@ -20,19 +35,24 @@ object ApiClient {
     private fun identityJson(kind: String, value: String): JSONObject =
         JSONObject().apply { put(if (kind == "token") "token" else "code", value) }
 
-    fun claimGmail(kind: String, value: String): GmailCredential? {
+    fun claimGmail(kind: String, value: String): ClaimResult {
         return try {
             val body = identityJson(kind, value).toString()
             val (code, response) = post("$BASE_URL/api/provisioning/gmail-claim", body)
             if (code != 200) {
-                Log.w(TAG, "gmail-claim failed: HTTP $code $response")
-                return null
+                val reason = try {
+                    JSONObject(response).optString("error", "unknown")
+                } catch (t: Throwable) {
+                    "unknown"
+                }
+                Log.w(TAG, "gmail-claim failed: HTTP $code $reason")
+                return ClaimResult.Failure(reason)
             }
             val json = JSONObject(response)
-            GmailCredential(json.getString("email"), json.getString("password"))
+            ClaimResult.Success(GmailCredential(json.getString("email"), json.getString("password")))
         } catch (t: Throwable) {
             Log.w(TAG, "gmail-claim error: ${t.message}")
-            null
+            ClaimResult.Failure("network")
         }
     }
 

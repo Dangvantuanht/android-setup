@@ -22,6 +22,8 @@ import android.view.accessibility.AccessibilityNodeInfo
  * Google sign-in flow — matches the same live-iteration reality we hit
  * tuning the DPC against real Samsung/Android quirks.
  */
+enum class FlowOutcome { SUCCESS, FAILED, NEEDS_NEW_CODE }
+
 class SetupAssistService : AccessibilityService() {
 
     private var flowThread: Thread? = null
@@ -59,30 +61,40 @@ class SetupAssistService : AccessibilityService() {
     // apps is the set the operator picked in MainActivity's checkbox list —
     // fetched from the server once and filtered locally, not re-fetched here,
     // so what actually installs matches exactly what was shown/checked.
-    fun startFlow(kind: String, value: String, apps: List<TargetApp>, onLog: (String) -> Unit, onDone: (Boolean) -> Unit) {
+    fun startFlow(kind: String, value: String, apps: List<TargetApp>, onLog: (String) -> Unit, onDone: (FlowOutcome) -> Unit) {
         if (flowThread?.isAlive == true) return
         cancelRequested = false
         isFlowRunning = true
         flowThread = Thread {
             try {
-                val ok = runFlow(kind, value, apps, onLog)
-                onDone(ok)
+                val outcome = runFlow(kind, value, apps, onLog)
+                onDone(outcome)
             } catch (t: Throwable) {
                 Log.e(TAG, "Flow failed", t)
                 onLog("Lỗi: ${t.message}")
-                onDone(false)
+                onDone(FlowOutcome.FAILED)
             } finally {
                 isFlowRunning = false
             }
         }.also { it.start() }
     }
 
-    private fun runFlow(kind: String, value: String, apps: List<TargetApp>, log: (String) -> Unit): Boolean {
+    private fun runFlow(kind: String, value: String, apps: List<TargetApp>, log: (String) -> Unit): FlowOutcome {
         log("Đang lấy tài khoản Gmail...")
-        val credential = ApiClient.claimGmail(kind, value)
-        if (credential == null) {
-            log("Không lấy được tài khoản Gmail (hết pool hoặc mã không hợp lệ).")
-            return false
+        val credential = when (val result = ApiClient.claimGmail(kind, value)) {
+            is ClaimResult.Success -> result.credential
+            is ClaimResult.Failure -> {
+                when (result.reason) {
+                    "expired" -> log("Mã kích hoạt đã hết hạn — cần lấy mã mới.")
+                    "not_found" -> log("Mã kích hoạt không tồn tại — cần lấy mã mới.")
+                    "revoked" -> log("Mã kích hoạt đã bị thu hồi — cần lấy mã mới.")
+                    "invalid" -> log("Mã kích hoạt không hợp lệ — cần lấy mã mới.")
+                    "no gmail accounts available" -> log("Hết tài khoản Gmail trong kho — báo admin bổ sung.")
+                    "network" -> log("Không kết nối được server — kiểm tra mạng rồi thử lại.")
+                    else -> log("Không lấy được tài khoản Gmail (${result.reason}).")
+                }
+                return if (result.needsNewCode) FlowOutcome.NEEDS_NEW_CODE else FlowOutcome.FAILED
+            }
         }
         log("Đã nhận: ${credential.email}")
 
@@ -91,7 +103,7 @@ class SetupAssistService : AccessibilityService() {
         if (launch == null) {
             log("Không tìm thấy Play Store trên máy.")
             ApiClient.reportOutcome(kind, value, credential.email, success = false)
-            return false
+            return FlowOutcome.FAILED
         }
         launch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         startActivity(launch)
@@ -101,20 +113,20 @@ class SetupAssistService : AccessibilityService() {
         ApiClient.reportOutcome(kind, value, credential.email, success = loginOk)
         if (!loginOk) {
             log("Đăng nhập Google không thành công — dừng lại, không cài app.")
-            return false
+            return FlowOutcome.FAILED
         }
         log("Đăng nhập thành công.")
 
         if (apps.isEmpty()) {
             log("Không có app nào được chọn để cài.")
-            return true
+            return FlowOutcome.SUCCESS
         }
         log("Cài ${apps.size} app: ${apps.joinToString { it.label }}")
         var allOk = true
         for (app in apps) {
             if (cancelRequested) {
                 log("Đã dừng theo yêu cầu.")
-                return false
+                return FlowOutcome.FAILED
             }
             log("Đang cài ${app.label}...")
             val ok = installApp(app, log)
@@ -122,7 +134,7 @@ class SetupAssistService : AccessibilityService() {
             log(if (ok) "✓ ${app.label} xong" else "✗ ${app.label} thất bại")
         }
         log("Hoàn tất.")
-        return allOk
+        return if (allOk) FlowOutcome.SUCCESS else FlowOutcome.FAILED
     }
 
     // ---- Google sign-in state machine ----------------------------------

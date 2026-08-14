@@ -228,9 +228,22 @@ class MainActivity : AppCompatActivity() {
             identity.second,
             selectedApps,
             onLog = { line -> runOnUiThread { appendLog(line) } },
-            onDone = { success ->
+            onDone = { outcome ->
                 runOnUiThread {
-                    if (success) Prefs.setSetupDone(this, true)
+                    when (outcome) {
+                        FlowOutcome.SUCCESS -> Prefs.setSetupDone(this, true)
+                        FlowOutcome.NEEDS_NEW_CODE -> {
+                            // The saved code is dead server-side (expired/
+                            // revoked/unknown) — clear it and pop the entry
+                            // field open instead of leaving staff to wonder
+                            // why "ĐÃ NHẬP" still shows for a code that can
+                            // never succeed again.
+                            Prefs.clearIdentity(this)
+                            codeEntryExpanded = true
+                            toast("Mã kích hoạt không dùng được nữa — nhập mã mới.")
+                        }
+                        FlowOutcome.FAILED -> {}
+                    }
                     refresh()
                 }
             },

@@ -30,6 +30,16 @@ object Prefs {
         return kind to value
     }
 
+    // Called when the server tells us the claim code is expired/unknown/
+    // revoked — the saved code is dead, so drop it and let the UI prompt for
+    // a fresh one instead of silently retrying the same bad value forever.
+    fun clearIdentity(context: Context) {
+        prefs(context).edit()
+            .remove(KEY_IDENTITY_KIND)
+            .remove(KEY_IDENTITY_VALUE)
+            .apply()
+    }
+
     fun isSetupDone(context: Context): Boolean = prefs(context).getBoolean(KEY_SETUP_DONE, false)
 
     fun setSetupDone(context: Context, done: Boolean) {
