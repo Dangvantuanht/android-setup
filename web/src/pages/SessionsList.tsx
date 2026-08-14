@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { api } from "../api";
-import type { EnrollmentSession } from "../types";
+import type { EnrollmentSession, WifiProfile } from "../types";
 
 const STATUS_LABEL: Record<string, string> = {
   PENDING: "Đang chờ",
@@ -47,20 +47,45 @@ export function SessionsList() {
   const [wifiSsid, setWifiSsid] = useState("");
   const [wifiPassword, setWifiPassword] = useState("");
   const [note, setNote] = useState("");
-  const [locale, setLocale] = useState("vi_VN");
+  const [locale, setLocale] = useState("ja_JP");
   const [creating, setCreating] = useState(false);
   const [, forceTick] = useState(0);
+
+  const [wifiProfiles, setWifiProfiles] = useState<WifiProfile[]>([]);
+  const [selectedWifiProfileId, setSelectedWifiProfileId] = useState("");
+  const [saveWifi, setSaveWifi] = useState(false);
 
   async function refresh() {
     setSessions(await api.listSessions());
   }
 
+  async function refreshWifiProfiles() {
+    setWifiProfiles(await api.listWifiProfiles());
+  }
+
   useEffect(() => {
     refresh();
+    refreshWifiProfiles();
     const es = new EventSource("/api/sessions/stream");
     es.onmessage = () => refresh();
     return () => es.close();
   }, []);
+
+  function onSelectWifiProfile(id: string) {
+    setSelectedWifiProfileId(id);
+    const profile = wifiProfiles.find((p) => p.id === id);
+    if (profile) {
+      setWifiSsid(profile.ssid);
+      setWifiPassword(profile.password || "");
+    }
+  }
+
+  async function onDeleteWifiProfile(id: string) {
+    if (!confirm("Xoá WiFi đã lưu này?")) return;
+    await api.deleteWifiProfile(id);
+    if (selectedWifiProfileId === id) setSelectedWifiProfileId("");
+    await refreshWifiProfiles();
+  }
 
   // re-render every second so the countdown timers stay live
   useEffect(() => {
@@ -72,6 +97,10 @@ export function SessionsList() {
     e.preventDefault();
     setCreating(true);
     try {
+      if (saveWifi && wifiSsid.trim()) {
+        await api.createWifiProfile({ label: wifiSsid.trim(), ssid: wifiSsid.trim(), password: wifiPassword || undefined });
+        await refreshWifiProfiles();
+      }
       const created = await api.createSession({
         wifiSsid: wifiSsid || undefined,
         wifiPassword: wifiPassword || undefined,
@@ -81,6 +110,8 @@ export function SessionsList() {
       setWifiSsid("");
       setWifiPassword("");
       setNote("");
+      setSelectedWifiProfileId("");
+      setSaveWifi(false);
       await refresh();
       setActiveQrId(created.id);
     } finally {
@@ -108,12 +139,49 @@ export function SessionsList() {
         <h2>Tạo phiên kích hoạt mới</h2>
         <div className="fields">
           <label>
+            WiFi đã lưu
+            <div className="wifi-profile-row">
+              <select
+                value={selectedWifiProfileId}
+                onChange={(e) => onSelectWifiProfile(e.target.value)}
+              >
+                <option value="">-- Nhập tay --</option>
+                {wifiProfiles.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.label}
+                  </option>
+                ))}
+              </select>
+              {selectedWifiProfileId && (
+                <button
+                  type="button"
+                  className="danger"
+                  onClick={() => onDeleteWifiProfile(selectedWifiProfileId)}
+                >
+                  Xoá
+                </button>
+              )}
+            </div>
+          </label>
+          <label>
             Wi-Fi SSID (tùy chọn)
-            <input value={wifiSsid} onChange={(e) => setWifiSsid(e.target.value)} />
+            <input
+              value={wifiSsid}
+              onChange={(e) => {
+                setWifiSsid(e.target.value);
+                setSelectedWifiProfileId("");
+              }}
+            />
           </label>
           <label>
             Wi-Fi Password
-            <input value={wifiPassword} onChange={(e) => setWifiPassword(e.target.value)} />
+            <input
+              value={wifiPassword}
+              onChange={(e) => {
+                setWifiPassword(e.target.value);
+                setSelectedWifiProfileId("");
+              }}
+            />
           </label>
           <label>
             Ghi chú (IMEI, model...)
@@ -130,6 +198,12 @@ export function SessionsList() {
             </select>
           </label>
         </div>
+        {!selectedWifiProfileId && (
+          <label className="checkbox-label">
+            <input type="checkbox" checked={saveWifi} onChange={(e) => setSaveWifi(e.target.checked)} />
+            Lưu WiFi này để dùng lại sau
+          </label>
+        )}
         <button type="submit" disabled={creating}>
           {creating ? "Đang tạo..." : "Tạo QR"}
         </button>

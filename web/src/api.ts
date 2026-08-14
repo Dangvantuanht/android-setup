@@ -1,4 +1,4 @@
-import type { EnrollmentSession, ModelReliabilityRow, StaffUser } from "./types";
+import type { EnrollmentSession, ModelReliabilityRow, StaffUser, WifiProfile } from "./types";
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const res = await fetch(path, {
@@ -55,4 +55,9 @@ export const api = {
     ),
   revokeSession: (id: string) => request<void>(`/api/sessions/${id}`, { method: "DELETE" }),
   modelReliability: () => request<ModelReliabilityRow[]>("/api/sessions/reports/model-reliability"),
+
+  listWifiProfiles: () => request<WifiProfile[]>("/api/wifi-profiles"),
+  createWifiProfile: (input: { label: string; ssid: string; password?: string; securityType?: string }) =>
+    request<WifiProfile>("/api/wifi-profiles", { method: "POST", body: JSON.stringify(input) }),
+  deleteWifiProfile: (id: string) => request<void>(`/api/wifi-profiles/${id}`, { method: "DELETE" }),
 };

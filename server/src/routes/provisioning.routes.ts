@@ -2,18 +2,37 @@ import { Router } from "express";
 import fs from "node:fs";
 import path from "node:path";
 import { config } from "../config.js";
-import { completeSessionFromCallback, recordHeartbeat } from "../services/session.service.js";
+import {
+  completeSessionFromCallback,
+  recordHeartbeat,
+  getSessionByToken,
+} from "../services/session.service.js";
 
 export const provisioningRouter = Router();
 
 const apkAbsolutePath = path.resolve(process.cwd(), config.dpc.apkPath);
 
 // Public: fetched by the device during Setup Wizard via PROVISIONING_DEVICE_ADMIN_PACKAGE_DOWNLOAD_LOCATION.
-provisioningRouter.get("/download/dpc.apk", (_req, res) => {
+// Token-gated (see qr.service.ts): once a session has already enrolled (or
+// expired/been revoked), a second device scanning the same printed/saved QR
+// can no longer download the APK at all — closing the gap where a stale QR
+// could still fully provision a second device even though its callback
+// would eventually be rejected.
+provisioningRouter.get("/download/dpc.apk", async (req, res) => {
   if (!fs.existsSync(apkAbsolutePath)) {
     res.status(500).json({ error: "release apk not configured" });
     return;
   }
+
+  const token = req.query.token;
+  if (typeof token === "string") {
+    const session = await getSessionByToken(token);
+    if (!session || session.status !== "PENDING" || session.expiresAt.getTime() < Date.now()) {
+      res.status(403).json({ error: "session no longer valid for download" });
+      return;
+    }
+  }
+
   res.setHeader("Content-Type", "application/vnd.android.package-archive");
   res.sendFile(apkAbsolutePath);
 });

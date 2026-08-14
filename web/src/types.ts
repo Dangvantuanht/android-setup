@@ -43,3 +43,12 @@ export type StaffUser = {
   lastSeenAt: string | null;
   createdAt: string;
 };
+
+export type WifiProfile = {
+  id: string;
+  label: string;
+  ssid: string;
+  password: string | null;
+  securityType: string;
+  createdAt: string;
+};

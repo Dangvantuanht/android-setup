@@ -9,7 +9,13 @@ const LOCALE_TZ_HINT: Record<string, string> = {
 };
 
 export function buildProvisioningPayload(session: EnrollmentSession): Record<string, unknown> {
-  const apkUrl = config.dpc.apkDownloadUrlOverride ?? `${config.publicBaseUrl}/download/dpc.apk`;
+  // Session-scoped by default so the download endpoint can refuse a second
+  // device re-using an already-enrolled QR (see provisioning.routes.ts). A
+  // static override URL (e.g. a public raw-file host) can't be gated this
+  // way — only use it when the local server genuinely isn't reachable.
+  const apkUrl =
+    config.dpc.apkDownloadUrlOverride ??
+    `${config.publicBaseUrl}/download/dpc.apk?token=${session.token}`;
   const callbackUrl = `${config.publicBaseUrl}/api/provisioning/callback`;
   const heartbeatUrl = `${config.publicBaseUrl}/api/provisioning/heartbeat`;
 

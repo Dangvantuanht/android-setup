@@ -27,6 +27,15 @@ model AppSetting {
   value String
 }
 
+model WifiProfile {
+  id           String   @id @default(cuid())
+  label        String
+  ssid         String
+  password     String?
+  securityType String   @default("WPA")
+  createdAt    DateTime @default(now())
+}
+
 // SQLite has no native enum support in Prisma; status/type are validated
 // application-side against the string unions in src/types.ts.
 model EnrollmentSession {
