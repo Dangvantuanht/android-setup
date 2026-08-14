@@ -3,3 +3,6 @@
 export type SessionStatus = "PENDING" | "ENROLLED" | "EXPIRED" | "REVOKED" | "FAILED";
 
 export type EventType = "QR_GENERATED" | "CALLBACK_OK" | "CALLBACK_REJECTED" | "EXPIRED" | "REVOKED";
+
+export type UserStatus = "PENDING" | "APPROVED" | "REJECTED";
+export type UserRole = "staff" | "admin";

@@ -7,6 +7,7 @@ import fs from "node:fs";
 import { config } from "./config.js";
 import { authRouter } from "./routes/auth.routes.js";
 import { sessionsRouter } from "./routes/sessions.routes.js";
+import { usersRouter } from "./routes/users.routes.js";
 import { provisioningRouter } from "./routes/provisioning.routes.js";
 import { startExpiryWorker } from "./services/expiry.worker.js";
 
@@ -43,6 +44,7 @@ app.use("/", provisioningRouter);
 
 app.use("/api/auth", authRouter);
 app.use("/api/sessions", sessionsRouter);
+app.use("/api/users", usersRouter);
 
 const webDist = path.resolve(process.cwd(), "../web/dist");
 if (fs.existsSync(webDist)) {

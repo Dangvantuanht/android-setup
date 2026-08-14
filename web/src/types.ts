@@ -31,3 +31,15 @@ export type ModelReliabilityRow = {
   enrolled: number;
   failed: number;
 };
+
+export type UserStatus = "PENDING" | "APPROVED" | "REJECTED";
+export type UserRole = "staff" | "admin";
+
+export type StaffUser = {
+  id: string;
+  email: string;
+  role: UserRole;
+  status: UserStatus;
+  lastSeenAt: string | null;
+  createdAt: string;
+};

@@ -8,13 +8,23 @@ datasource db {
 }
 
 model StaffUser {
-  id           String   @id @default(cuid())
-  email        String   @unique
+  id           String    @id @default(cuid())
+  email        String    @unique
   passwordHash String
-  role         String   @default("staff")
-  createdAt    DateTime @default(now())
+  role         String    @default("staff")
+  status       String    @default("PENDING")
+  lastSeenAt   DateTime?
+  createdAt    DateTime  @default(now())
 
   sessions EnrollmentSession[]
+}
+
+// Singleton-ish key/value store for dashboard-wide toggles (e.g. auto-approve
+// registration). Not modeled as a single-row table so more settings can be
+// added later without a migration each time.
+model AppSetting {
+  key   String @id
+  value String
 }
 
 // SQLite has no native enum support in Prisma; status/type are validated

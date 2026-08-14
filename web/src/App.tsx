@@ -3,9 +3,10 @@ import { AuthProvider, useAuth } from "./AuthContext";
 import { Login } from "./pages/Login";
 import { SessionsList } from "./pages/SessionsList";
 import { ModelReliability } from "./pages/ModelReliability";
+import { UsersManagement } from "./pages/UsersManagement";
 
 function Shell({ children }: { children: React.ReactNode }) {
-  const { email, logout } = useAuth();
+  const { email, role, logout } = useAuth();
   return (
     <div className="shell shell-sidebar">
       <aside className="sidebar">
@@ -15,6 +16,7 @@ function Shell({ children }: { children: React.ReactNode }) {
             Phiên kích hoạt
           </NavLink>
           <NavLink to="/reports">Báo cáo model</NavLink>
+          {role === "admin" && <NavLink to="/users">Người dùng</NavLink>}
         </nav>
         <button className="logout-link" onClick={() => logout()}>
           Đăng xuất ({email})
@@ -23,6 +25,13 @@ function Shell({ children }: { children: React.ReactNode }) {
       <main>{children}</main>
     </div>
   );
+}
+
+function RequireAdmin({ children }: { children: React.ReactElement }) {
+  const { role, loading } = useAuth();
+  if (loading) return <p>Đang tải...</p>;
+  if (role !== "admin") return <Navigate to="/" replace />;
+  return children;
 }
 
 function RequireAuth({ children }: { children: React.ReactElement }) {
@@ -49,6 +58,16 @@ function AppRoutes() {
         element={
           <RequireAuth>
             <ModelReliability />
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/users"
+        element={
+          <RequireAuth>
+            <RequireAdmin>
+              <UsersManagement />
+            </RequireAdmin>
           </RequireAuth>
         }
       />

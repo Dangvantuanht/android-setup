@@ -1,4 +1,4 @@
-import type { EnrollmentSession, ModelReliabilityRow } from "./types";
+import type { EnrollmentSession, ModelReliabilityRow, StaffUser } from "./types";
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const res = await fetch(path, {
@@ -15,13 +15,29 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 }
 
 export const api = {
-  login: (email: string, password: string) =>
-    request<{ id: string; email: string }>("/api/auth/login", {
+  login: (email: string, password: string, rememberMe?: boolean) =>
+    request<{ id: string; email: string; role: string }>("/api/auth/login", {
+      method: "POST",
+      body: JSON.stringify({ email, password, rememberMe }),
+    }),
+  register: (email: string, password: string) =>
+    request<{ ok: true }>("/api/auth/register", {
       method: "POST",
       body: JSON.stringify({ email, password }),
     }),
   logout: () => request<void>("/api/auth/logout", { method: "POST" }),
-  me: () => request<{ id: string; email: string }>("/api/auth/me"),
+  me: () => request<{ id: string; email: string; role: string }>("/api/auth/me"),
+
+  listUsers: () => request<StaffUser[]>("/api/users"),
+  updateUser: (id: string, input: { status?: string; role?: string }) =>
+    request<StaffUser>(`/api/users/${id}`, { method: "PATCH", body: JSON.stringify(input) }),
+  deleteUser: (id: string) => request<void>(`/api/users/${id}`, { method: "DELETE" }),
+  getAutoApprove: () => request<{ enabled: boolean }>("/api/users/settings/auto-approve"),
+  setAutoApprove: (enabled: boolean) =>
+    request<{ enabled: boolean }>("/api/users/settings/auto-approve", {
+      method: "PATCH",
+      body: JSON.stringify({ enabled }),
+    }),
 
   listSessions: (status?: string) =>
     request<EnrollmentSession[]>(`/api/sessions${status ? `?status=${status}` : ""}`),
