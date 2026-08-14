@@ -1,3 +1,4 @@
+import "express-async-errors";
 import express from "express";
 import session from "express-session";
 import connectSqlite3 from "connect-sqlite3";
@@ -17,7 +18,7 @@ const app = express();
 app.use(express.json());
 app.use((req, res, next) => {
   res.on("finish", () => {
-    console.log(`[req] ${req.method} ${req.path} -> ${res.statusCode}`);
+    console.log(`[req] ${req.method} ${req.originalUrl} -> ${res.statusCode}`);
   });
   next();
 });
@@ -48,6 +49,15 @@ if (fs.existsSync(webDist)) {
   app.use(express.static(webDist));
   app.get("*", (_req, res) => res.sendFile(path.join(webDist, "index.html")));
 }
+
+// Last resort: a single bad request (DB hiccup, bad input, etc.) must never
+// take the whole process down — without this, an uncaught error in any async
+// route handler crashes the server for every other in-flight user/device.
+app.use((err: unknown, req: express.Request, res: express.Response, _next: express.NextFunction) => {
+  console.error(`[error] ${req.method} ${req.originalUrl}`, err);
+  if (res.headersSent) return;
+  res.status(500).json({ error: "internal server error" });
+});
 
 startExpiryWorker();
 
