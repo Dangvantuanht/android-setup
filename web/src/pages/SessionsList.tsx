@@ -366,7 +366,7 @@ export function SessionsList() {
                 <td>{s.wifiSsid || "—"}</td>
                 <td>{s.note || "—"}</td>
                 {isAdmin && <td>{s.createdBy?.email || "—"}</td>}
-                <td>{new Date(s.createdAt).toLocaleTimeString()}</td>
+                <td>{new Date(s.createdAt).toLocaleString()}</td>
                 <td>{s.status === "PENDING" ? timeLeft(s.expiresAt) : "—"}</td>
                 <td>
                   {s.status === "PENDING" && (

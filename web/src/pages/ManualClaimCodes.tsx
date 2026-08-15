@@ -100,7 +100,7 @@ export function ManualClaimCodes() {
               <td>{c.note || "—"}</td>
               <td>{c.gmailAccounts.length > 0 ? c.gmailAccounts.map((g) => g.email).join(", ") : "—"}</td>
               {role === "admin" && <td>{c.createdBy?.email || "—"}</td>}
-              <td>{new Date(c.createdAt).toLocaleTimeString()}</td>
+              <td>{new Date(c.createdAt).toLocaleString()}</td>
               <td>{c.status === "PENDING" ? timeLeft(c.expiresAt) : "—"}</td>
               <td>
                 {c.status === "PENDING" && (
