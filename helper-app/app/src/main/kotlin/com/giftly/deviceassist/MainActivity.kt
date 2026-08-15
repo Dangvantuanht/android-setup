@@ -79,11 +79,25 @@ class MainActivity : AppCompatActivity() {
 
         // The DPC silently installs + launches this app right after a device
         // finishes QR activation, passing its enrollment token along — see
-        // dpc-app's silent-install step. If that's absent, this was opened by
-        // hand (manually-activated device), so ask staff to type the short
-        // claim code from the dashboard instead.
+        // dpc-app's silent-install step.
         intent?.getStringExtra(EXTRA_ENROLLMENT_TOKEN)?.let { token ->
             Prefs.saveIdentity(this, "token", token)
+        }
+
+        // Fallback for QR-activated devices: if the auto-launch above didn't
+        // happen to actually deliver the token this time (confirmed live —
+        // a Knox install-confirmation dialog can interrupt DPC's silent
+        // install+launch, so staff end up opening this app by hand from the
+        // launcher with no extra attached), ask the DPC directly over a
+        // same-device broadcast instead of falling back straight to manual
+        // code entry. Harmless no-op on a manually-activated device (DPC
+        // isn't installed there, so nothing answers).
+        if (Prefs.getIdentity(this) == null) {
+            sendBroadcast(Intent(ACTION_QUERY_TOKEN).setPackage(DPC_PACKAGE))
+            // The reply lands in TokenReplyReceiver asynchronously and just
+            // writes to shared Prefs — re-check shortly after so the UI
+            // picks it up without staff having to background/reopen the app.
+            android.os.Handler(mainLooper).postDelayed({ refresh() }, 1_500)
         }
 
         rowCode.setOnClickListener {
@@ -259,5 +273,8 @@ class MainActivity : AppCompatActivity() {
 
     companion object {
         const val EXTRA_ENROLLMENT_TOKEN = "enrollment_token"
+        private const val DPC_PACKAGE = "com.autosetup.dpc"
+        // Matches TokenQueryReceiver.ACTION_QUERY_TOKEN in the DPC app.
+        private const val ACTION_QUERY_TOKEN = "com.autosetup.dpc.action.QUERY_HELPER_TOKEN"
     }
 }

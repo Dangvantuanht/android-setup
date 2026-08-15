@@ -34,6 +34,13 @@ object HelperAppPrefs {
             .apply()
     }
 
+    /** The token itself regardless of install-pending/done state — used to
+     * answer the helper app's "what's my token?" query even after the
+     * install flow already finished (see TokenQueryReceiver). */
+    fun peekToken(context: Context): String? {
+        return context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).getString(KEY_TOKEN, null)
+    }
+
     fun incrementAttempts(context: Context): Int {
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         val next = prefs.getInt(KEY_ATTEMPTS, 0) + 1

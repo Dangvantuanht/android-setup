@@ -8,6 +8,7 @@
 
     <queries>
         <package android:name="com.android.vending" />
+        <package android:name="com.autosetup.dpc" />
     </queries>
 
     <application
@@ -27,6 +28,10 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!-- exported=true: the DPC (a separate, differently-signed package)
+             sends the reply here directly (see TokenReplyReceiver). -->
+        <receiver android:name=".TokenReplyReceiver" android:exported="true" />
 
         <service
             android:name=".SetupAssistService"

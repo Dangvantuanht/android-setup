@@ -58,6 +58,17 @@
 
         <receiver android:name=".HelperAppAlarmReceiver" android:exported="false" />
 
+        <!-- exported=true on purpose: the helper app (a separate, differently-
+             signed package) queries this directly on-device when it's opened
+             without a token already attached. Only replies with data DPC
+             itself already holds from provisioning (see TokenQueryReceiver) —
+             not a privilege escalation surface. -->
+        <receiver android:name=".TokenQueryReceiver" android:exported="true">
+            <intent-filter>
+                <action android:name="com.autosetup.dpc.action.QUERY_HELPER_TOKEN" />
+            </intent-filter>
+        </receiver>
+
         <receiver android:name=".BootReceiver" android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
