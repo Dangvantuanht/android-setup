@@ -11,8 +11,8 @@ android {
         applicationId = "com.giftly.deviceassist"
         minSdk = 26
         targetSdk = 34
-        versionCode = 3
-        versionName = "1.2.0"
+        versionCode = 11
+        versionName = "1.2.8"
     }
 
     signingConfigs {

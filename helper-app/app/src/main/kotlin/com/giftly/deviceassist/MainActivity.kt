@@ -245,7 +245,17 @@ class MainActivity : AppCompatActivity() {
             onDone = { outcome ->
                 runOnUiThread {
                     when (outcome) {
-                        FlowOutcome.SUCCESS -> Prefs.setSetupDone(this, true)
+                        FlowOutcome.SUCCESS -> {
+                            Prefs.setSetupDone(this, true)
+                            // Staff don't need to sit looking at the log
+                            // screen once everything's done — hand the
+                            // device back to Home automatically. Short
+                            // delay so the final "Hoàn tất" log line is
+                            // still visible for a moment first.
+                            android.os.Handler(mainLooper).postDelayed({
+                                moveTaskToBack(true)
+                            }, 1_500)
+                        }
                         FlowOutcome.NEEDS_NEW_CODE -> {
                             // The saved code is dead server-side (expired/
                             // revoked/unknown) — clear it and pop the entry
@@ -266,7 +276,12 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun appendLog(line: String) {
+        // Also mirrored to logcat (see below) — this TextView alone isn't
+        // enough to debug a run after the fact, since it's wiped on the next
+        // run and isn't visible unless someone is staring at the screen at
+        // the exact moment.
         txtLog.text = "${txtLog.text}\n$line".trim()
+        android.util.Log.i("DeviceAssist", line)
     }
 
     private fun toast(msg: String) = android.widget.Toast.makeText(this, msg, android.widget.Toast.LENGTH_SHORT).show()

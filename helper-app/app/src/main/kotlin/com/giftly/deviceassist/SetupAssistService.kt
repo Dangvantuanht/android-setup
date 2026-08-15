@@ -208,13 +208,21 @@ class SetupAssistService : AccessibilityService() {
 
     private fun attemptGoogleSignIn(credential: GmailCredential, log: (String) -> Unit): Boolean {
         val deadline = SystemClock.elapsedRealtime() + SIGN_IN_TIMEOUT_MS
-        // Once we've clicked past the consent/agree step at least once, seeing
-        // the email field again means Google rejected/reset the attempt (e.g.
+        // Once the password has actually been submitted once, seeing the
+        // email field again means Google rejected/reset the attempt (e.g.
         // "tài khoản đã tồn tại trên máy" or a re-auth challenge) rather than
         // a normal step forward. Retrying identically in the same broken
         // session just re-submits the same login — end this attempt so the
         // caller can restart cleanly instead of hammering it in place.
-        var passedAgree = false
+        //
+        // Deliberately tracked separately from "any AFFIRM_TEXTS click
+        // happened" (an earlier version conflated the two into one
+        // `passedAgree` flag). Confirmed live: clicking "スキップ" on
+        // Google's "簡単にログインする" (phone-number easy-sign-in) prompt —
+        // a real, correct, necessary click — was setting that flag, so the
+        // very next email-field sighting got wrongly treated as a rejection
+        // even though the password had never actually been typed yet.
+        var passedPassword = false
 
         while (!cancelRequested && SystemClock.elapsedRealtime() < deadline) {
             val root = activeRoot()
@@ -229,42 +237,61 @@ class SetupAssistService : AccessibilityService() {
                     return true
                 }
 
-                // Play Store's initial "not signed in" landing screen shows a
-                // single Sign-in button before any email field exists. Exact
-                // match only — later screens' titles contain "ログイン" too.
-                if (clickByText(root, SIGN_IN_TEXTS, exact = true)) {
-                    log("Đã bấm nút đăng nhập")
-                    waitMs(POLL_MS)
-                    continue
-                }
-
                 // Re-check the actual field present on screen every cycle
                 // instead of a one-shot "already typed" flag — confirmed live
                 // that Google can re-prompt for email again after password +
                 // consent (its own re-auth challenge, e.g. after repeated
                 // sign-ins during testing), and a one-way flag gets stuck
                 // forever refusing to re-fill it when that happens.
+                //
+                // Checked BEFORE the Sign-in button below — confirmed live
+                // this order matters: the email-entry screen's own title is
+                // the exact string "ログイン", identical to the landing
+                // page's Sign-in button text. Exact-match alone can't tell
+                // them apart, so checking for the input field first (only
+                // present once we're actually on that screen) is what
+                // disambiguates it — checking the button first caused the
+                // automation to repeatedly click the inert title text
+                // instead of ever reaching the email field, until timeout.
                 val pwField = findEditable(root, isPassword = true)
                 if (pwField != null) {
                     setText(pwField, credential.password)
-                    log("Đã nhập mật khẩu")
-                    clickByText(root, NEXT_TEXTS)
                     pwField.recycle()
+                    log("Đã nhập mật khẩu")
+                    // ACTION_SET_TEXT is fire-and-forget — clicking Next in
+                    // the same instant risked submitting before the field's
+                    // typed value actually committed, tripping a transient
+                    // "wrong password" state that only succeeded on the next
+                    // poll cycle's retry. Give the field a moment to settle
+                    // first.
+                    waitMs(POLL_MS)
+                    clickByText(root, NEXT_TEXTS)
+                    passedPassword = true
                     waitMs(POLL_MS)
                     continue
                 }
 
                 val emailField = findEditable(root, isPassword = false)
                 if (emailField != null) {
-                    if (passedAgree) {
+                    if (passedPassword) {
                         log("Google từ chối đăng nhập lại (có thể tài khoản đã tồn tại trên máy).")
                         emailField.recycle()
                         return false
                     }
                     setText(emailField, credential.email)
-                    log("Đã nhập email")
-                    clickByText(root, NEXT_TEXTS)
                     emailField.recycle()
+                    log("Đã nhập email")
+                    waitMs(POLL_MS)
+                    clickByText(root, NEXT_TEXTS)
+                    waitMs(POLL_MS)
+                    continue
+                }
+
+                // Play Store's initial "not signed in" landing screen shows a
+                // single Sign-in button before any email field exists — only
+                // reached here once neither input field above matched.
+                if (clickByText(root, SIGN_IN_TEXTS, exact = true)) {
+                    log("Đã bấm nút đăng nhập")
                     waitMs(POLL_MS)
                     continue
                 }
@@ -272,10 +299,35 @@ class SetupAssistService : AccessibilityService() {
                 // Consent / ToS / "Google Services" / backup prompts — click
                 // through any recognized affirmative button, scrolling down
                 // first if none is visible yet.
-                if (clickByText(root, AFFIRM_TEXTS)) {
-                    passedAgree = true
-                    waitMs(POLL_MS)
-                    continue
+                //
+                // Logs the exact matched text (unlike a plain clickByText
+                // call) — needed to debug false-positive matches like the
+                // "ログイン" title collision found earlier. Deliberately does
+                // NOT touch passedPassword — these are generic optional
+                // interstitials (ToS, contacts backup, phone-number linking,
+                // etc.) that can appear before OR after the password step in
+                // no fixed order, so clicking one is not evidence either way
+                // about whether the password has been submitted.
+                val affirmMatches = mutableListOf<AccessibilityNodeInfo>()
+                findAllByText(root, AFFIRM_TEXTS, affirmMatches)
+                if (affirmMatches.isNotEmpty()) {
+                    val matchedText = affirmMatches.firstOrNull()?.let { it.text ?: it.contentDescription }
+                    var clicked = false
+                    try {
+                        for (node in affirmMatches) {
+                            if (clickNode(node)) {
+                                clicked = true
+                                break
+                            }
+                        }
+                    } finally {
+                        affirmMatches.forEach { it.recycle() }
+                    }
+                    if (clicked) {
+                        log("Đã bấm (affirm): \"$matchedText\"")
+                        waitMs(POLL_MS)
+                        continue
+                    }
                 }
                 if (scrollDown(root)) {
                     waitMs(POLL_MS)
@@ -353,42 +405,35 @@ class SetupAssistService : AccessibilityService() {
         waitMs(2_500)
 
         val deadline = SystemClock.elapsedRealtime() + INSTALL_TIMEOUT_MS
+
+        // Step 1: find and tap the Install button — nothing else. Bounded
+        // retry loop only for the page still loading, not for anything
+        // past the tap itself.
         var tappedInstall = false
-        while (!cancelRequested && SystemClock.elapsedRealtime() < deadline) {
+        while (!cancelRequested && !tappedInstall && SystemClock.elapsedRealtime() < deadline) {
             val root = activeRoot()
             if (root == null) {
                 waitMs(POLL_MS)
                 continue
             }
             try {
-                if (findByText(root, listOf("Mở", "Open", "Gỡ cài đặt", "Uninstall", "開く", "アンインストール"), exact = false) != null) {
-                    return true // already installed / install finished
-                }
-                if (!tappedInstall) {
-                    tappedInstall = clickByText(root, listOf("Cài đặt", "Install", "インストール"))
-                    if (tappedInstall) {
-                        waitMs(POLL_MS)
-                        continue
-                    }
-                }
-                // First-ever install on a fresh account can interrupt with a
-                // "set up a payment method" interstitial ("次へ" / "スキップ")
-                // between tapping Install and the download actually starting
-                // — confirmed live. Same NEXT/AFFIRM text lists as sign-in
-                // click through it; only tried once we're past the Install
-                // tap so we don't accidentally skip past the button itself.
-                if (tappedInstall) {
-                    if (clickByText(root, NEXT_TEXTS)) {
-                        waitMs(POLL_MS)
-                        continue
-                    }
-                    if (clickByText(root, AFFIRM_TEXTS)) {
-                        waitMs(POLL_MS)
-                        continue
-                    }
-                }
+                tappedInstall = clickByText(root, listOf("Cài đặt", "Install", "インストール"))
             } finally {
                 root.recycle()
+            }
+            if (!tappedInstall) waitMs(POLL_MS)
+        }
+
+        // Step 2: once Install is tapped, stop reading the screen entirely.
+        // Confirmed live: continuing to scan for NEXT_TEXTS/AFFIRM_TEXTS
+        // while a real download was in progress risked matching something
+        // near a "Huỷ"/Cancel button on the download-progress screen and
+        // clicking it, aborting an install that was actually working. The
+        // only reliable "is it done" signal is PackageManager, not on-screen
+        // text — check that alone until it shows up or we time out.
+        while (!cancelRequested && SystemClock.elapsedRealtime() < deadline) {
+            if (candidates.any { isPackageInstalled(it) }) {
+                return true
             }
             waitMs(POLL_MS)
         }
@@ -586,13 +631,29 @@ class SetupAssistService : AccessibilityService() {
             "Tôi đồng ý", "I agree", "Chấp nhận", "Accept",
             "Không, cảm ơn", "No thanks", "Bỏ qua", "Skip",
             "Tôi hiểu", "I understand", "Tiếp tục", "Continue",
-            "Xem thêm", "More", "OK", "Đồng ý",
+            "Xem thêm", "More", "Đồng ý",
             "同意する", "有効にしない", "キャンセル", "スキップ", "後で",
             // "Welcome to Google Play" onboarding carousel — confirmed live
             // (2026-08-14): shows up for a genuinely fresh account, wasn't
             // seen with the account reused across earlier test runs.
             "始める", "Get started",
+            // Play Store's "Show local recommendations?" location-personalization
+            // prompt — confirmed live (2026-08-15) that without this the
+            // automation just stalls here until timeout, since none of the
+            // other AFFIRM_TEXTS matched either button on this screen. Declining
+            // ("利用しない") instead of "続行" (Continue) avoids a follow-up
+            // system location-permission dialog that Continue would trigger.
+            "利用しない",
         )
+
+        // "OK" can't go in AFFIRM_TEXTS above — clickByText's substring match
+        // (case-insensitive) matches it against ANY visible text containing
+        // "ok", and "TikTok" ends in "tok", which contains "ok". Confirmed
+        // live: this clicked the "TikTok Pte. Ltd." developer-name link on
+        // TikTok's own Play Store page (its clickable ancestor within 6
+        // levels), navigating to the publisher's app list and oscillating
+        // back and forth with the detail page forever. Needs an exact match.
+        private val AFFIRM_TEXTS_EXACT = listOf("OK")
 
         @Volatile var instance: SetupAssistService? = null
             private set
