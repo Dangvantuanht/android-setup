@@ -45,6 +45,13 @@ export type StaffUser = {
   status: UserStatus;
   lastSeenAt: string | null;
   createdAt: string;
+  qrQuota: number | null;
+  qrUsed: number;
+};
+
+export type QrUsage = {
+  used: number;
+  quota: number | null;
 };
 
 export type WifiProfile = {

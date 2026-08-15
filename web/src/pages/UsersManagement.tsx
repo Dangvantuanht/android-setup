@@ -63,6 +63,19 @@ export function UsersManagement() {
     await refresh();
   }
 
+  async function onEditQuota(id: string, current: number | null) {
+    const input = prompt("Hạn mức QR (số máy được kích hoạt) — để trống = vô hạn:", current === null ? "" : String(current));
+    if (input === null) return;
+    const trimmed = input.trim();
+    const qrQuota = trimmed === "" ? null : Number(trimmed);
+    if (qrQuota !== null && (!Number.isInteger(qrQuota) || qrQuota < 0)) {
+      alert("Hạn mức phải là số nguyên không âm, hoặc để trống.");
+      return;
+    }
+    await api.updateUser(id, { qrQuota });
+    await refresh();
+  }
+
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     if (!q) return users;
@@ -117,6 +130,7 @@ export function UsersManagement() {
             <th>Email</th>
             <th>Vai trò</th>
             <th>Trạng thái</th>
+            <th>QR đã dùng / Tổng</th>
             <th>Hoạt động gần nhất</th>
             <th>Tạo lúc</th>
             <th></th>
@@ -131,9 +145,13 @@ export function UsersManagement() {
               <td>{u.email}</td>
               <td>{u.role === "admin" ? "Admin" : "Nhân viên"}</td>
               <td>{STATUS_LABEL[u.status] ?? u.status}</td>
+              <td>
+                {u.qrUsed} / {u.qrQuota === null ? "∞" : u.qrQuota}
+              </td>
               <td>{u.lastSeenAt ? new Date(u.lastSeenAt).toLocaleString() : "—"}</td>
               <td>{new Date(u.createdAt).toLocaleDateString()}</td>
               <td className="users-actions">
+                <button onClick={() => onEditQuota(u.id, u.qrQuota)}>Sửa</button>
                 {u.status === "PENDING" && (
                   <>
                     <button onClick={() => onSetStatus(u.id, "APPROVED")}>Duyệt</button>
@@ -159,7 +177,7 @@ export function UsersManagement() {
           ))}
           {filtered.length === 0 && (
             <tr>
-              <td colSpan={7}>Không có tài khoản nào khớp.</td>
+              <td colSpan={8}>Không có tài khoản nào khớp.</td>
             </tr>
           )}
         </tbody>

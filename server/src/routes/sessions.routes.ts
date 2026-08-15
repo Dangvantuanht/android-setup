@@ -11,6 +11,7 @@ import { renderProvisioningQrPng } from "../services/qr.service.js";
 import { sessionEvents } from "../services/eventBus.js";
 import { requireAuth } from "../middleware/auth.middleware.js";
 import { prisma } from "../db/prisma.js";
+import { getQrUsage } from "../services/user.service.js";
 
 export const sessionsRouter = Router();
 sessionsRouter.use(requireAuth);
@@ -20,7 +21,20 @@ const MAX_BULK_CREATE = 50;
 sessionsRouter.post("/", async (req, res) => {
   const { wifiSsid, wifiPassword, wifiSecurityType, locale, timezone, note, count } = req.body ?? {};
   const requested = typeof count === "number" && Number.isFinite(count) ? Math.trunc(count) : 1;
-  const clamped = Math.min(Math.max(requested, 1), MAX_BULK_CREATE);
+  let clamped = Math.min(Math.max(requested, 1), MAX_BULK_CREATE);
+
+  // Quota counts successful activations (ENROLLED), not QR codes generated
+  // — a staffer can still have unused/expired QR codes lying around without
+  // that costing them anything. null quota = unlimited.
+  const { used, quota } = await getQrUsage(req.session.staffId!);
+  if (quota !== null) {
+    const remaining = quota - used;
+    if (remaining <= 0) {
+      res.status(403).json({ error: "Đã dùng hết hạn mức QR được cấp — liên hệ admin để tăng hạn mức." });
+      return;
+    }
+    clamped = Math.min(clamped, remaining);
+  }
 
   const sessions = await createSessionsBulk(
     { wifiSsid, wifiPassword, wifiSecurityType, locale, timezone, note, createdByStaffId: req.session.staffId },

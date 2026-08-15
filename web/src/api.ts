@@ -7,6 +7,7 @@ import type {
   ManualClaimCode,
   TargetApp,
   AuditLog,
+  QrUsage,
 } from "./types";
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
@@ -38,9 +39,10 @@ export const api = {
   me: () => request<{ id: string; email: string; role: string }>("/api/auth/me"),
 
   listUsers: () => request<StaffUser[]>("/api/users"),
-  updateUser: (id: string, input: { status?: string; role?: string }) =>
+  updateUser: (id: string, input: { status?: string; role?: string; qrQuota?: number | null }) =>
     request<StaffUser>(`/api/users/${id}`, { method: "PATCH", body: JSON.stringify(input) }),
   deleteUser: (id: string) => request<void>(`/api/users/${id}`, { method: "DELETE" }),
+  getMyQrUsage: () => request<QrUsage>("/api/users/me/qr-usage"),
   getAutoApprove: () => request<{ enabled: boolean }>("/api/users/settings/auto-approve"),
   setAutoApprove: (enabled: boolean) =>
     request<{ enabled: boolean }>("/api/users/settings/auto-approve", {

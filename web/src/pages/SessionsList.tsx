@@ -1,7 +1,7 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { api } from "../api";
 import { useAuth } from "../AuthContext";
-import type { EnrollmentSession, WifiProfile } from "../types";
+import type { EnrollmentSession, QrUsage, WifiProfile } from "../types";
 
 const STATUS_LABEL: Record<string, string> = {
   PENDING: "Đang chờ",
@@ -64,9 +64,11 @@ export function SessionsList() {
   const count = Math.min(50, Math.max(1, Number(countText) || 1));
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [batchIds, setBatchIds] = useState<string[]>([]);
+  const [qrUsage, setQrUsage] = useState<QrUsage | null>(null);
 
   async function refresh() {
     setSessions(await api.listSessions());
+    setQrUsage(await api.getMyQrUsage());
   }
 
   async function refreshWifiProfiles() {
@@ -130,6 +132,8 @@ export function SessionsList() {
       } else {
         setBatchIds(created.map((s) => s.id));
       }
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Không tạo được QR");
     } finally {
       setCreating(false);
     }
@@ -195,6 +199,12 @@ export function SessionsList() {
     <div className="sessions-page">
       <form className="create-form" onSubmit={onCreate}>
         <h2>Tạo phiên kích hoạt mới</h2>
+        {qrUsage && (
+          <p className="hint">
+            Hạn mức QR: {qrUsage.used} / {qrUsage.quota === null ? "∞" : qrUsage.quota} máy đã kích hoạt
+            {qrUsage.quota !== null && qrUsage.used >= qrUsage.quota && " — đã hết hạn mức, liên hệ admin"}
+          </p>
+        )}
         <div className="fields">
           <label>
             WiFi đã lưu
@@ -273,7 +283,10 @@ export function SessionsList() {
             Lưu WiFi này để dùng lại sau
           </label>
         )}
-        <button type="submit" disabled={creating}>
+        <button
+          type="submit"
+          disabled={creating || (qrUsage?.quota !== null && qrUsage !== null && qrUsage.used >= qrUsage.quota)}
+        >
           {creating ? "Đang tạo..." : count > 1 ? `Tạo ${count} QR` : "Tạo QR"}
         </button>
       </form>

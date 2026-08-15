@@ -1,15 +1,23 @@
 import { Router } from "express";
-import { requireAdmin } from "../middleware/auth.middleware.js";
+import { requireAdmin, requireAuth } from "../middleware/auth.middleware.js";
 import {
   listUsers,
   updateUser,
   deleteUser,
   getAutoApprove,
   setAutoApprove,
+  getQrUsage,
 } from "../services/user.service.js";
 import { logAction } from "../services/auditLog.service.js";
 
 export const usersRouter = Router();
+
+// Every staffer (not just admin) can check their own QR quota usage — shown
+// on the sessions page so they know how many activations they have left.
+usersRouter.get("/me/qr-usage", requireAuth, async (req, res) => {
+  res.json(await getQrUsage(req.session.staffId!));
+});
+
 usersRouter.use(requireAdmin);
 
 usersRouter.get("/", async (_req, res) => {
@@ -31,8 +39,8 @@ usersRouter.patch("/settings/auto-approve", async (req, res) => {
 });
 
 usersRouter.patch("/:id", async (req, res) => {
-  const { status, role } = req.body ?? {};
-  const data: { status?: string; role?: string } = {};
+  const { status, role, qrQuota } = req.body ?? {};
+  const data: { status?: string; role?: string; qrQuota?: number | null } = {};
   if (status !== undefined) {
     if (!["PENDING", "APPROVED", "REJECTED"].includes(status)) {
       res.status(400).json({ error: "invalid status" });
@@ -47,13 +55,22 @@ usersRouter.patch("/:id", async (req, res) => {
     }
     data.role = role;
   }
+  if (qrQuota !== undefined) {
+    if (qrQuota !== null && (typeof qrQuota !== "number" || !Number.isInteger(qrQuota) || qrQuota < 0)) {
+      res.status(400).json({ error: "qrQuota must be a non-negative integer or null" });
+      return;
+    }
+    data.qrQuota = qrQuota;
+  }
   if (Object.keys(data).length === 0) {
     res.status(400).json({ error: "nothing to update" });
     return;
   }
 
-  // Prevent an admin from locking themselves out by demoting/rejecting their own account.
-  if (req.session.staffId === req.params.id) {
+  // Prevent an admin from locking themselves out by demoting/rejecting their
+  // own account — doesn't apply to qrQuota alone, which carries no lockout risk.
+  const changingOnlyQuota = status === undefined && role === undefined;
+  if (req.session.staffId === req.params.id && !changingOnlyQuota) {
     res.status(400).json({ error: "cannot modify your own account" });
     return;
   }

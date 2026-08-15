@@ -15,6 +15,9 @@ model StaffUser {
   status       String    @default("PENDING")
   lastSeenAt   DateTime?
   createdAt    DateTime  @default(now())
+  // Max devices this staffer may successfully activate (counts sessions
+  // that reach ENROLLED). null = unlimited. Admin-set only.
+  qrQuota      Int?
 
   sessions EnrollmentSession[]
   claimCodes ManualClaimCode[]
