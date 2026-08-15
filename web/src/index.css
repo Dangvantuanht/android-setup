@@ -104,6 +104,14 @@ body {
   padding: 0.6rem 0.9rem;
   border-radius: 8px;
   font-size: 0.9rem;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.sidebar nav a svg {
+  flex-shrink: 0;
+  opacity: 0.85;
 }
 
 .sidebar nav a:hover {
@@ -135,6 +143,20 @@ body {
   border-radius: 10px;
 }
 
+.sidebar-top-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.drawer-close-btn {
+  background: transparent;
+  border: none;
+  color: #cbd5e1;
+  padding: 0.25rem;
+  display: none;
+}
+
 .logout-link {
   margin-top: auto;
   background: transparent;
@@ -143,6 +165,9 @@ body {
   text-align: left;
   padding: 0.6rem 0.9rem;
   font-size: 0.8rem;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
 }
 
 .logout-link:hover {
@@ -293,13 +318,28 @@ button:disabled {
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
 }
 
+/* Tables can't scroll horizontally themselves without a wrapper, but every
+   page already renders <table className="sessions-table"> directly — rather
+   than touching every page's JSX, make the table itself the scroll
+   container. Looks identical on desktop, swipeable on mobile. */
 .sessions-table {
+  display: block;
+  overflow-x: auto;
   width: 100%;
+  max-width: 100%;
   border-collapse: collapse;
   background: white;
   border-radius: 8px;
-  overflow: hidden;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  -webkit-overflow-scrolling: touch;
+}
+
+.sessions-table tbody,
+.sessions-table thead,
+.sessions-table tr {
+  display: table;
+  width: 100%;
+  table-layout: auto;
 }
 
 .sessions-table th,
@@ -451,4 +491,181 @@ button:disabled {
   display: flex;
   gap: 0.4rem;
   flex-wrap: wrap;
+}
+
+/* ==================== Mobile / responsive ==================== */
+
+.mobile-only {
+  display: none;
+}
+
+.mobile-topbar-menu-btn {
+  background: transparent;
+  border: none;
+  color: #16213e;
+  padding: 0.4rem;
+}
+
+.mobile-topbar-title {
+  font-weight: 700;
+  color: #16213e;
+}
+
+.drawer-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  z-index: 40;
+}
+
+/* Icon-strip quick nav — icon on top, label below, horizontally scrollable
+   if it doesn't fit (matches the reference: a colored strip of icon+label
+   columns). Sits alongside the hamburger-triggered drawer, not instead of. */
+.mobile-strip-nav {
+  display: flex;
+  gap: 1.25rem;
+  overflow-x: auto;
+  background: #16213e;
+  padding: 0.75rem 1rem;
+  -webkit-overflow-scrolling: touch;
+}
+
+.mobile-strip-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3rem;
+  flex-shrink: 0;
+  color: #9fb0d9;
+  text-decoration: none;
+  font-size: 0.7rem;
+  min-width: 56px;
+}
+
+.mobile-strip-item.active {
+  color: #ffffff;
+}
+
+.mobile-strip-item svg {
+  opacity: 0.85;
+}
+
+.mobile-strip-item.active svg {
+  opacity: 1;
+}
+
+@media (max-width: 860px) {
+  .mobile-only {
+    display: flex;
+  }
+
+  .shell-sidebar {
+    flex-direction: column;
+  }
+
+  .mobile-topbar-menu-btn,
+  .mobile-topbar-title {
+    display: flex;
+    align-items: center;
+  }
+
+  .shell-sidebar {
+    position: relative;
+  }
+
+  /* Fixed top bar: hamburger + title, always visible while scrolling. */
+  .mobile-topbar-menu-btn {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 52px;
+    z-index: 30;
+  }
+
+  .mobile-topbar-title {
+    position: fixed;
+    top: 0;
+    left: 52px;
+    height: 52px;
+    z-index: 30;
+  }
+
+  .shell-sidebar::before {
+    content: "";
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 52px;
+    background: #16213e;
+    z-index: 20;
+  }
+
+  /* Sidebar becomes an off-canvas drawer, hidden by default. */
+  .sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: 260px;
+    max-width: 80vw;
+    transform: translateX(-100%);
+    transition: transform 0.2s ease;
+    z-index: 50;
+    overflow-y: auto;
+  }
+
+  .sidebar.sidebar-open {
+    transform: translateX(0);
+  }
+
+  .drawer-close-btn {
+    display: flex;
+  }
+
+  .mobile-strip-nav {
+    position: fixed;
+    top: 52px;
+    left: 0;
+    right: 0;
+    z-index: 25;
+  }
+
+  .shell-sidebar main {
+    padding: 1rem;
+    padding-top: calc(52px + 64px + 1rem);
+    width: 100%;
+  }
+
+  .create-form .fields {
+    flex-direction: column;
+  }
+
+  .create-form .fields label {
+    width: 100%;
+  }
+
+  .create-form input,
+  .create-form select {
+    width: 100%;
+  }
+
+  .users-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .users-header-controls {
+    width: 100%;
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .users-search {
+    width: 100%;
+  }
+
+  .qr-strip {
+    justify-content: center;
+  }
 }

@@ -1,4 +1,5 @@
-import { BrowserRouter, Routes, Route, Navigate, NavLink } from "react-router-dom";
+import { useState } from "react";
+import { BrowserRouter, Routes, Route, Navigate, NavLink, useLocation } from "react-router-dom";
 import { AuthProvider, useAuth } from "./AuthContext";
 import { Login } from "./pages/Login";
 import { SessionsList } from "./pages/SessionsList";
@@ -8,39 +9,111 @@ import { GmailAccounts } from "./pages/GmailAccounts";
 import { ManualClaimCodes } from "./pages/ManualClaimCodes";
 import { TargetApps } from "./pages/TargetApps";
 import { SystemLogs } from "./pages/SystemLogs";
+import {
+  IconQr,
+  IconKey,
+  IconMail,
+  IconChart,
+  IconUsers,
+  IconApps,
+  IconLogs,
+  IconMenu,
+  IconClose,
+  IconLogout,
+} from "./icons";
+
+type NavItem = {
+  to: string;
+  end?: boolean;
+  label: string;
+  icon: (props: { size?: number }) => React.ReactElement;
+  adminOnly?: boolean;
+};
+
+// Single source of truth for both the sidebar/drawer and the mobile icon
+// strip — one list to keep in sync instead of two.
+const NAV_ITEMS: NavItem[] = [
+  { to: "/", end: true, label: "Phiên kích hoạt", icon: IconQr },
+  { to: "/claim-codes", label: "Mã kích hoạt", icon: IconKey },
+  { to: "/gmail-accounts", label: "Tài khoản Gmail", icon: IconMail },
+  { to: "/reports", label: "Báo cáo model", icon: IconChart },
+  { to: "/users", label: "Người dùng", icon: IconUsers, adminOnly: true },
+  { to: "/target-apps", label: "App cần cài", icon: IconApps, adminOnly: true },
+  { to: "/logs", label: "System Logs", icon: IconLogs, adminOnly: true },
+];
 
 function Shell({ children }: { children: React.ReactNode }) {
   const { email, role, logout } = useAuth();
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const location = useLocation();
+
+  const commonItems = NAV_ITEMS.filter((i) => !i.adminOnly);
+  const adminItems = NAV_ITEMS.filter((i) => i.adminOnly);
+  const isAdmin = role === "admin";
+  // Mobile icon strip: common items always, admin items too if admin — kept
+  // to one row (horizontally scrollable if it overflows on a narrow phone).
+  const stripItems = isAdmin ? NAV_ITEMS : commonItems;
+
   return (
     <div className="shell shell-sidebar">
-      <aside className="sidebar">
-        <div className="sidebar-title">Autosetup</div>
+      <button className="mobile-topbar-menu-btn mobile-only" onClick={() => setDrawerOpen(true)} aria-label="Mở menu">
+        <IconMenu />
+      </button>
+      <div className="mobile-topbar-title mobile-only">Autosetup</div>
+
+      {drawerOpen && <div className="drawer-backdrop mobile-only" onClick={() => setDrawerOpen(false)} />}
+
+      <aside className={`sidebar ${drawerOpen ? "sidebar-open" : ""}`}>
+        <div className="sidebar-top-row">
+          <div className="sidebar-title">Autosetup</div>
+          <button className="drawer-close-btn mobile-only" onClick={() => setDrawerOpen(false)} aria-label="Đóng menu">
+            <IconClose size={20} />
+          </button>
+        </div>
         <nav>
-          {/* Chung cho mọi tài khoản — dữ liệu tự lọc theo đúng người dùng
-              (mỗi staff chỉ thấy máy/mã/Gmail do chính mình tạo), admin thấy
-              hết. Không cần tách nav riêng vì cùng 1 trang, khác dữ liệu. */}
-          <NavLink to="/" end>
-            Phiên kích hoạt
-          </NavLink>
-          <NavLink to="/claim-codes">Mã kích hoạt thủ công</NavLink>
-          <NavLink to="/gmail-accounts">Tài khoản Gmail</NavLink>
-          <NavLink to="/reports">Báo cáo model</NavLink>
+          {commonItems.map((item) => (
+            <NavLink key={item.to} to={item.to} end={item.end} onClick={() => setDrawerOpen(false)}>
+              <item.icon />
+              <span>{item.label}</span>
+            </NavLink>
+          ))}
         </nav>
-        {role === "admin" && (
+        {isAdmin && (
           <>
             <div className="sidebar-admin-label">ADMIN</div>
             <nav className="sidebar-admin-section">
-              <NavLink to="/users">Người dùng</NavLink>
-              <NavLink to="/target-apps">App cần cài</NavLink>
-              <NavLink to="/logs">System Logs</NavLink>
+              {adminItems.map((item) => (
+                <NavLink key={item.to} to={item.to} onClick={() => setDrawerOpen(false)}>
+                  <item.icon />
+                  <span>{item.label}</span>
+                </NavLink>
+              ))}
             </nav>
           </>
         )}
         <button className="logout-link" onClick={() => logout()}>
-          Đăng xuất ({email})
+          <IconLogout />
+          <span>Đăng xuất ({email})</span>
         </button>
       </aside>
-      <main>{children}</main>
+
+      {/* "Menu ngang" — quick icon strip along the top on mobile, same idea
+          as the sidebar but always visible without opening the drawer. */}
+      <nav className="mobile-strip-nav mobile-only">
+        {stripItems.map((item) => (
+          <NavLink
+            key={item.to}
+            to={item.to}
+            end={item.end}
+            className={({ isActive }) => `mobile-strip-item${isActive ? " active" : ""}`}
+          >
+            <item.icon size={22} />
+            <span>{item.label}</span>
+          </NavLink>
+        ))}
+      </nav>
+
+      <main key={location.pathname}>{children}</main>
     </div>
   );
 }
