@@ -241,9 +241,14 @@ export async function expireStaleSessions(): Promise<number> {
   return stale.length;
 }
 
-export async function modelReliabilityReport() {
+// Same silo as listSessions — staff only sees stats for their own devices,
+// admin (ownerStaffId=undefined) sees the aggregate across everyone.
+export async function modelReliabilityReport(ownerStaffId?: string) {
   const sessions = await prisma.enrollmentSession.findMany({
-    where: { deviceModel: { not: null } },
+    where: {
+      deviceModel: { not: null },
+      ...(ownerStaffId ? { createdByStaffId: ownerStaffId } : {}),
+    },
     select: { deviceModel: true, androidRelease: true, status: true },
   });
 

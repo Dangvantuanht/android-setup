@@ -19,6 +19,7 @@ model StaffUser {
   sessions EnrollmentSession[]
   claimCodes ManualClaimCode[]
   gmailAccounts GmailAccount[]
+  wifiProfiles WifiProfile[]
   auditLogs AuditLog[]
 }
 
@@ -30,13 +31,21 @@ model AppSetting {
   value String
 }
 
+// Treated as personal data — fully silo'd per staff member, no admin
+// oversight override (unlike sessions/claim codes/gmail accounts) per
+// explicit instruction; revisit once the admin side of the dashboard gets
+// designed further.
 model WifiProfile {
   id           String   @id @default(cuid())
   label        String
   ssid         String
   password     String?
   securityType String   @default("WPA")
+  ownerStaffId String?
+  owner        StaffUser? @relation(fields: [ownerStaffId], references: [id])
   createdAt    DateTime @default(now())
+
+  @@index([ownerStaffId])
 }
 
 // Pool of company-owned Gmail accounts handed out one-per-device by the

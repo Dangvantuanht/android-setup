@@ -5,8 +5,8 @@ import { listWifiProfiles, createWifiProfile, deleteWifiProfile } from "../servi
 export const wifiProfilesRouter = Router();
 wifiProfilesRouter.use(requireAuth);
 
-wifiProfilesRouter.get("/", async (_req, res) => {
-  res.json(await listWifiProfiles());
+wifiProfilesRouter.get("/", async (req, res) => {
+  res.json(await listWifiProfiles(req.session.staffId!));
 });
 
 wifiProfilesRouter.post("/", async (req, res) => {
@@ -20,11 +20,12 @@ wifiProfilesRouter.post("/", async (req, res) => {
     ssid: ssid.trim(),
     password: typeof password === "string" ? password : undefined,
     securityType: typeof securityType === "string" ? securityType : undefined,
+    ownerStaffId: req.session.staffId!,
   });
   res.status(201).json(profile);
 });
 
 wifiProfilesRouter.delete("/:id", async (req, res) => {
-  await deleteWifiProfile(req.params.id);
+  await deleteWifiProfile(req.params.id, req.session.staffId!);
   res.status(204).end();
 });

@@ -85,8 +85,9 @@ sessionsRouter.get("/stream", (req, res) => {
   });
 });
 
-sessionsRouter.get("/reports/model-reliability", async (_req, res) => {
-  res.json(await modelReliabilityReport());
+sessionsRouter.get("/reports/model-reliability", async (req, res) => {
+  const ownerStaffId = req.session.staffRole === "admin" ? undefined : req.session.staffId;
+  res.json(await modelReliabilityReport(ownerStaffId));
 });
 
 // Staff can only reach their own sessions by id too — silo applies to direct
