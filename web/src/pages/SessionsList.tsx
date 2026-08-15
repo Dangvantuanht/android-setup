@@ -320,6 +320,7 @@ export function SessionsList() {
         </div>
       )}
 
+      <div className="table-scroll">
       <table className="sessions-table">
         <thead>
           <tr>
@@ -393,6 +394,7 @@ export function SessionsList() {
           )}
         </tbody>
       </table>
+      </div>
     </div>
   );
 }

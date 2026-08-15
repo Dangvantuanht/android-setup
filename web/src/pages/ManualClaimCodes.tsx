@@ -79,6 +79,7 @@ export function ManualClaimCodes() {
         </button>
       </form>
 
+      <div className="table-scroll">
       <table className="sessions-table">
         <thead>
           <tr>
@@ -118,6 +119,7 @@ export function ManualClaimCodes() {
           )}
         </tbody>
       </table>
+      </div>
     </div>
   );
 }

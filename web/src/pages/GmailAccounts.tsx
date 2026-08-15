@@ -122,6 +122,7 @@ export function GmailAccounts() {
         </label>
       </div>
 
+      <div className="table-scroll">
       <table className="sessions-table">
         <thead>
           <tr>
@@ -170,6 +171,7 @@ export function GmailAccounts() {
           )}
         </tbody>
       </table>
+      </div>
     </div>
   );
 }

@@ -12,6 +12,7 @@ export function ModelReliability() {
   return (
     <div className="report-page">
       <h2>Độ tin cậy theo dòng máy</h2>
+      <div className="table-scroll">
       <table className="sessions-table">
         <thead>
           <tr>
@@ -39,6 +40,7 @@ export function ModelReliability() {
           )}
         </tbody>
       </table>
+      </div>
     </div>
   );
 }

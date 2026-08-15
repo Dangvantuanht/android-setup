@@ -109,6 +109,7 @@ export function UsersManagement() {
         </div>
       </div>
 
+      <div className="table-scroll">
       <table className="sessions-table">
         <thead>
           <tr>
@@ -163,6 +164,7 @@ export function UsersManagement() {
           )}
         </tbody>
       </table>
+      </div>
     </div>
   );
 }

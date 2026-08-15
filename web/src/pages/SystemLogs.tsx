@@ -40,6 +40,7 @@ export function SystemLogs() {
         </div>
       </div>
 
+      <div className="table-scroll">
       <table className="sessions-table">
         <thead>
           <tr>
@@ -65,6 +66,7 @@ export function SystemLogs() {
           )}
         </tbody>
       </table>
+      </div>
     </div>
   );
 }

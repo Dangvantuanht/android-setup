@@ -50,9 +50,6 @@ function Shell({ children }: { children: React.ReactNode }) {
   const commonItems = NAV_ITEMS.filter((i) => !i.adminOnly);
   const adminItems = NAV_ITEMS.filter((i) => i.adminOnly);
   const isAdmin = role === "admin";
-  // Mobile icon strip: common items always, admin items too if admin — kept
-  // to one row (horizontally scrollable if it overflows on a narrow phone).
-  const stripItems = isAdmin ? NAV_ITEMS : commonItems;
 
   return (
     <div className="shell shell-sidebar">
@@ -97,10 +94,11 @@ function Shell({ children }: { children: React.ReactNode }) {
         </button>
       </aside>
 
-      {/* "Menu ngang" — quick icon strip along the top on mobile, same idea
-          as the sidebar but always visible without opening the drawer. */}
+      {/* "Menu ngang" — quick icon strip along the bottom on mobile, just the
+          4 items every user actually uses day-to-day (never the admin
+          section, even for admins — that stays behind the hamburger). */}
       <nav className="mobile-strip-nav mobile-only">
-        {stripItems.map((item) => (
+        {commonItems.map((item) => (
           <NavLink
             key={item.to}
             to={item.to}

@@ -318,28 +318,23 @@ button:disabled {
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
 }
 
-/* Tables can't scroll horizontally themselves without a wrapper, but every
-   page already renders <table className="sessions-table"> directly — rather
-   than touching every page's JSX, make the table itself the scroll
-   container. Looks identical on desktop, swipeable on mobile. */
-.sessions-table {
-  display: block;
+/* Real scroll container around the table (not the table itself split into
+   separate thead/tbody "tables" — that earlier approach let header and body
+   columns size independently and misaligned every column). Table keeps a
+   single table-layout context; white-space:nowrap on cells is what forces it
+   wider than the viewport so the wrapper actually has something to scroll. */
+.table-scroll {
   overflow-x: auto;
-  width: 100%;
-  max-width: 100%;
-  border-collapse: collapse;
-  background: white;
   border-radius: 8px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
   -webkit-overflow-scrolling: touch;
 }
 
-.sessions-table tbody,
-.sessions-table thead,
-.sessions-table tr {
-  display: table;
-  width: 100%;
-  table-layout: auto;
+.sessions-table {
+  width: max-content;
+  min-width: 100%;
+  border-collapse: collapse;
+  background: white;
 }
 
 .sessions-table th,
@@ -348,6 +343,7 @@ button:disabled {
   padding: 0.6rem 0.9rem;
   border-bottom: 1px solid #eee;
   font-size: 0.85rem;
+  white-space: nowrap;
 }
 
 .sessions-table tr.status-enrolled {
@@ -518,15 +514,18 @@ button:disabled {
   z-index: 40;
 }
 
-/* Icon-strip quick nav — icon on top, label below, horizontally scrollable
-   if it doesn't fit (matches the reference: a colored strip of icon+label
-   columns). Sits alongside the hamburger-triggered drawer, not instead of. */
+/* Icon-strip quick nav — icon on top, label below (matches the reference: a
+   colored strip of icon+label columns), just the 4 everyday items. Sits
+   alongside the hamburger-triggered drawer, not instead of. display:none
+   here (not just via .mobile-only) so it can't win a cascade tie against the
+   media query below on desktop — this class sets other unconditional
+   properties too, so it needs its own explicit display. */
 .mobile-strip-nav {
-  display: flex;
+  display: none;
   gap: 1.25rem;
   overflow-x: auto;
   background: #16213e;
-  padding: 0.75rem 1rem;
+  padding: 0.6rem 1rem;
   -webkit-overflow-scrolling: touch;
 }
 
@@ -624,16 +623,19 @@ button:disabled {
   }
 
   .mobile-strip-nav {
+    display: flex;
     position: fixed;
-    top: 52px;
+    bottom: 0;
     left: 0;
     right: 0;
     z-index: 25;
+    padding-bottom: calc(0.6rem + env(safe-area-inset-bottom, 0px));
   }
 
   .shell-sidebar main {
     padding: 1rem;
-    padding-top: calc(52px + 64px + 1rem);
+    padding-top: calc(52px + 1rem);
+    padding-bottom: calc(64px + 1rem);
     width: 100%;
   }
 

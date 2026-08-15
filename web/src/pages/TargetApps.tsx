@@ -95,6 +95,7 @@ export function TargetApps() {
         </div>
       )}
 
+      <div className="table-scroll">
       <table className="sessions-table">
         <thead>
           <tr>
@@ -135,6 +136,7 @@ export function TargetApps() {
           )}
         </tbody>
       </table>
+      </div>
     </div>
   );
 }
