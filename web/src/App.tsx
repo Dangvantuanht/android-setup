@@ -53,10 +53,15 @@ function Shell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="shell shell-sidebar">
-      <button className="mobile-topbar-menu-btn mobile-only" onClick={() => setDrawerOpen(true)} aria-label="Mở menu">
-        <IconMenu />
-      </button>
-      <div className="mobile-topbar-title mobile-only">Autosetup</div>
+      {/* A real element, not a ::before pseudo-element on the flex shell —
+          that earlier approach became a flex item of .shell-sidebar itself
+          and didn't reliably paint over scrolled content underneath. */}
+      <header className="mobile-topbar mobile-only">
+        <button className="mobile-topbar-menu-btn" onClick={() => setDrawerOpen(true)} aria-label="Mở menu">
+          <IconMenu />
+        </button>
+        <span className="mobile-topbar-title">Autosetup</span>
+      </header>
 
       {drawerOpen && <div className="drawer-backdrop mobile-only" onClick={() => setDrawerOpen(false)} />}
 

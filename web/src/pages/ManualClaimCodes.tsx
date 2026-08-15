@@ -25,6 +25,7 @@ export function ManualClaimCodes() {
   const [creating, setCreating] = useState(false);
   const [loading, setLoading] = useState(true);
   const [, forceTick] = useState(0);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   async function refresh() {
     setCodes(await api.listClaimCodes());
@@ -59,6 +60,27 @@ export function ManualClaimCodes() {
     await refresh();
   }
 
+  function toggleSelected(id: string) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  async function onBulkDelete() {
+    const requested = selectedIds.size;
+    if (requested === 0) return;
+    if (!confirm(`Xoá vĩnh viễn ${requested} mã đã chọn khỏi lịch sử?`)) return;
+    const { deleted } = await api.bulkDeleteClaimCodes(Array.from(selectedIds));
+    setSelectedIds(new Set());
+    await refresh();
+    if (deleted < requested) {
+      alert("Một số mã đang chờ dùng không thể xoá (cần thu hồi trước).");
+    }
+  }
+
   if (loading) return <p>Đang tải...</p>;
 
   return (
@@ -79,10 +101,20 @@ export function ManualClaimCodes() {
         </button>
       </form>
 
+      {selectedIds.size > 0 && (
+        <div className="bulk-actions">
+          <span>{selectedIds.size} mục đã chọn</span>
+          <button className="danger" onClick={onBulkDelete}>
+            Xoá đã chọn
+          </button>
+        </div>
+      )}
+
       <div className="table-scroll">
       <table className="sessions-table">
         <thead>
           <tr>
+            <th></th>
             <th>Mã</th>
             <th>Trạng thái</th>
             <th>Ghi chú</th>
@@ -94,27 +126,39 @@ export function ManualClaimCodes() {
           </tr>
         </thead>
         <tbody>
-          {codes.map((c) => (
-            <tr key={c.id} className={`status-${c.status.toLowerCase()}`}>
-              <td><strong>{c.code}</strong></td>
-              <td>{STATUS_LABEL[c.status] ?? c.status}</td>
-              <td>{c.note || "—"}</td>
-              <td>{c.gmailAccounts.length > 0 ? c.gmailAccounts.map((g) => g.email).join(", ") : "—"}</td>
-              {role === "admin" && <td>{c.createdBy?.email || "—"}</td>}
-              <td>{new Date(c.createdAt).toLocaleString()}</td>
-              <td>{c.status === "PENDING" ? timeLeft(c.expiresAt) : "—"}</td>
-              <td>
-                {c.status === "PENDING" && (
-                  <button className="danger" onClick={() => onRevoke(c.id)}>
-                    Thu hồi
-                  </button>
-                )}
-              </td>
-            </tr>
-          ))}
+          {codes.map((c) => {
+            const deletable = c.status !== "PENDING";
+            return (
+              <tr key={c.id} className={`status-${c.status.toLowerCase()}`}>
+                <td>
+                  {deletable && (
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.has(c.id)}
+                      onChange={() => toggleSelected(c.id)}
+                    />
+                  )}
+                </td>
+                <td><strong>{c.code}</strong></td>
+                <td>{STATUS_LABEL[c.status] ?? c.status}</td>
+                <td>{c.note || "—"}</td>
+                <td>{c.gmailAccounts.length > 0 ? c.gmailAccounts.map((g) => g.email).join(", ") : "—"}</td>
+                {role === "admin" && <td>{c.createdBy?.email || "—"}</td>}
+                <td>{new Date(c.createdAt).toLocaleString()}</td>
+                <td>{c.status === "PENDING" ? timeLeft(c.expiresAt) : "—"}</td>
+                <td>
+                  {c.status === "PENDING" && (
+                    <button className="danger" onClick={() => onRevoke(c.id)}>
+                      Thu hồi
+                    </button>
+                  )}
+                </td>
+              </tr>
+            );
+          })}
           {codes.length === 0 && (
             <tr>
-              <td colSpan={role === "admin" ? 8 : 7}>Chưa có mã nào.</td>
+              <td colSpan={role === "admin" ? 9 : 8}>Chưa có mã nào.</td>
             </tr>
           )}
         </tbody>

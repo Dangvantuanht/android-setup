@@ -67,6 +67,20 @@ export async function markClaimCodeClaimed(id: string): Promise<void> {
   });
 }
 
+// Hard-delete history cleanup — only non-PENDING codes (an active/still-
+// usable code should be revoked first, not silently deleted out from under
+// a device mid-flow). Staff can only clear their own; admin can clear any.
+export async function deleteClaimCodes(ids: string[], ownerStaffId?: string): Promise<number> {
+  const result = await prisma.manualClaimCode.deleteMany({
+    where: {
+      id: { in: ids },
+      status: { in: ["EXPIRED", "REVOKED", "CLAIMED"] },
+      ...(ownerStaffId ? { createdByStaffId: ownerStaffId } : {}),
+    },
+  });
+  return result.count;
+}
+
 export async function expireStaleClaimCodes(): Promise<number> {
   const result = await prisma.manualClaimCode.updateMany({
     where: { status: "PENDING", expiresAt: { lt: new Date() } },

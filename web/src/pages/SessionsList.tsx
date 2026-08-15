@@ -57,7 +57,11 @@ export function SessionsList() {
   const [wifiProfiles, setWifiProfiles] = useState<WifiProfile[]>([]);
   const [selectedWifiProfileId, setSelectedWifiProfileId] = useState("");
   const [saveWifi, setSaveWifi] = useState(false);
-  const [count, setCount] = useState(1);
+  // Kept as a raw string (not a clamped number) so the field can go through
+  // an empty/intermediate state while typing — a controlled input that
+  // snaps back to 1 the instant the field is cleared can never be retyped.
+  const [countText, setCountText] = useState("1");
+  const count = Math.min(50, Math.max(1, Number(countText) || 1));
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [batchIds, setBatchIds] = useState<string[]>([]);
 
@@ -119,7 +123,7 @@ export function SessionsList() {
       setNote("");
       setSelectedWifiProfileId("");
       setSaveWifi(false);
-      setCount(1);
+      setCountText("1");
       await refresh();
       if (created.length === 1) {
         setActiveQrId(created[0].id);
@@ -257,8 +261,9 @@ export function SessionsList() {
               type="number"
               min={1}
               max={50}
-              value={count}
-              onChange={(e) => setCount(Math.min(50, Math.max(1, Number(e.target.value) || 1)))}
+              value={countText}
+              onChange={(e) => setCountText(e.target.value)}
+              onBlur={() => setCountText(String(count))}
             />
           </label>
         </div>

@@ -495,16 +495,30 @@ button:disabled {
   display: none;
 }
 
+/* display:none of its own (not just via .mobile-only) for the same reason as
+   .mobile-strip-nav below — this class carries unconditional layout/paint
+   properties (background, position) so it needs to own its display too,
+   otherwise it can win a cascade tie against .mobile-only on desktop. */
+.mobile-topbar {
+  display: none;
+  align-items: center;
+  gap: 0.5rem;
+  background: #16213e;
+  color: white;
+}
+
 .mobile-topbar-menu-btn {
   background: transparent;
   border: none;
-  color: #16213e;
+  color: white;
   padding: 0.4rem;
+  display: flex;
+  align-items: center;
 }
 
 .mobile-topbar-title {
   font-weight: 700;
-  color: #16213e;
+  color: white;
 }
 
 .drawer-backdrop {
@@ -560,44 +574,21 @@ button:disabled {
 
   .shell-sidebar {
     flex-direction: column;
-  }
-
-  .mobile-topbar-menu-btn,
-  .mobile-topbar-title {
-    display: flex;
-    align-items: center;
-  }
-
-  .shell-sidebar {
     position: relative;
   }
 
-  /* Fixed top bar: hamburger + title, always visible while scrolling. */
-  .mobile-topbar-menu-btn {
-    position: fixed;
-    top: 0;
-    left: 0;
-    height: 52px;
-    z-index: 30;
-  }
-
-  .mobile-topbar-title {
-    position: fixed;
-    top: 0;
-    left: 52px;
-    height: 52px;
-    z-index: 30;
-  }
-
-  .shell-sidebar::before {
-    content: "";
+  /* Fixed top bar: hamburger + title, opaque, always on top of scrolled
+     content — a real element now, not a pseudo-element sharing the flex
+     shell's layout algorithm. */
+  .mobile-topbar {
+    display: flex;
     position: fixed;
     top: 0;
     left: 0;
     right: 0;
     height: 52px;
-    background: #16213e;
-    z-index: 20;
+    padding: 0 0.5rem;
+    z-index: 30;
   }
 
   /* Sidebar becomes an off-canvas drawer, hidden by default. */
@@ -647,9 +638,13 @@ button:disabled {
     width: 100%;
   }
 
-  .create-form input,
+  .create-form input:not([type="checkbox"]),
   .create-form select {
     width: 100%;
+  }
+
+  .checkbox-label {
+    width: auto;
   }
 
   .users-header {

@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { requireAuth } from "../middleware/auth.middleware.js";
 import { prisma } from "../db/prisma.js";
-import { createClaimCode, listClaimCodes, revokeClaimCode } from "../services/manualClaimCode.service.js";
+import { createClaimCode, listClaimCodes, revokeClaimCode, deleteClaimCodes } from "../services/manualClaimCode.service.js";
 import { logAction } from "../services/auditLog.service.js";
 
 // Any logged-in staff can create/use claim codes — needed daily to activate
@@ -23,6 +23,17 @@ manualClaimCodesRouter.post("/", async (req, res) => {
   );
   logAction(req.session.staffId, "CLAIM_CODE_CREATED", code.code);
   res.status(201).json(code);
+});
+
+manualClaimCodesRouter.post("/bulk-delete", async (req, res) => {
+  const { ids } = req.body ?? {};
+  if (!Array.isArray(ids) || ids.some((id) => typeof id !== "string")) {
+    res.status(400).json({ error: "ids must be a string array" });
+    return;
+  }
+  const isAdmin = req.session.staffRole === "admin";
+  const deleted = await deleteClaimCodes(ids, isAdmin ? undefined : req.session.staffId);
+  res.json({ deleted });
 });
 
 manualClaimCodesRouter.delete("/:id", async (req, res) => {

@@ -94,6 +94,11 @@ export const api = {
   createClaimCode: (note?: string) =>
     request<ManualClaimCode>("/api/claim-codes", { method: "POST", body: JSON.stringify({ note }) }),
   revokeClaimCode: (id: string) => request<void>(`/api/claim-codes/${id}`, { method: "DELETE" }),
+  bulkDeleteClaimCodes: (ids: string[]) =>
+    request<{ deleted: number }>("/api/claim-codes/bulk-delete", {
+      method: "POST",
+      body: JSON.stringify({ ids }),
+    }),
 
   listTargetApps: () => request<TargetApp[]>("/api/target-apps"),
   bulkAddTargetApps: (raw: string) =>
