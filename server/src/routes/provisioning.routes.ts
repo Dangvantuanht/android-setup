@@ -14,6 +14,7 @@ import {
   markClaimCodeClaimed,
 } from "../services/manualClaimCode.service.js";
 import { listTargetApps } from "../services/targetApp.service.js";
+import { recordDeviceLog, type LogTarget } from "../services/deviceLog.service.js";
 
 export const provisioningRouter = Router();
 
@@ -59,6 +60,23 @@ async function resolveClaimant(
     return { ok: false, reason: "expired" };
   }
   return { ok: false, reason: "invalid" };
+}
+
+// Deliberately more permissive than resolveClaimant() above — a log line is
+// useful regardless of session/claim-code status (PENDING, ENROLLED,
+// EXPIRED, whatever), unlike claiming a Gmail account which has real
+// business rules to enforce. Just needs the token/code to point at
+// something real.
+async function resolveLogTarget(token: unknown, code: unknown): Promise<LogTarget | null> {
+  if (typeof token === "string") {
+    const session = await getSessionByToken(token);
+    return session ? { sessionId: session.id } : null;
+  }
+  if (typeof code === "string") {
+    const claimCode = await getClaimCodeByCode(code);
+    return claimCode ? { claimCodeId: claimCode.id } : null;
+  }
+  return null;
 }
 
 const apkAbsolutePath = path.resolve(process.cwd(), config.dpc.apkPath);
@@ -129,6 +147,27 @@ provisioningRouter.post("/api/provisioning/heartbeat", async (req, res) => {
   const level = typeof batteryLevel === "number" ? Math.round(batteryLevel) : undefined;
   const result = await recordHeartbeat(token, level, typeof model === "string" ? model : undefined);
   res.status(200).json({ ok: result.accepted });
+});
+
+// Public, best-effort, fire-and-forget: dpc-app and helper-app both send
+// individual log lines here so staff can see what happened on a device even
+// with no physical USB/adb access (screen frozen, debugging never
+// authorized, etc — see conversation 2026-08-15). Always 200, never surfaces
+// a reason to fail — a device that can't log shouldn't treat that as a
+// provisioning error.
+provisioningRouter.post("/api/provisioning/log", async (req, res) => {
+  const { token, code, source, message, level } = req.body ?? {};
+  if (typeof message !== "string" || typeof source !== "string" || !message.trim()) {
+    res.status(200).json({ ok: false });
+    return;
+  }
+  const target = await resolveLogTarget(token, code);
+  if (!target) {
+    res.status(200).json({ ok: false });
+    return;
+  }
+  await recordDeviceLog(target, source, message, typeof level === "string" ? level : undefined);
+  res.status(200).json({ ok: true });
 });
 
 // Public but identity-gated (DPC token or manual claim code — see

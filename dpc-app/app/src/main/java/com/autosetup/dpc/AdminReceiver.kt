@@ -23,6 +23,15 @@ class AdminReceiver : DeviceAdminReceiver() {
         val token = adminExtras?.getString(ProvisioningActivity.EXTRA_KEY_ENROLLMENT_TOKEN)
         val callbackUrl = adminExtras?.getString(ProvisioningActivity.EXTRA_KEY_CALLBACK_URL)
         val heartbeatUrl = adminExtras?.getString(ProvisioningActivity.EXTRA_KEY_HEARTBEAT_URL)
+        val logUrl = adminExtras?.getString(ProvisioningActivity.EXTRA_KEY_LOG_URL)
+        // Redundant with ProvisioningActivity's own RemoteLog.init() — this
+        // callback is the more reliable one (fires on every Android version,
+        // unlike ADMIN_POLICY_COMPLIANCE which some OEM skins skip), so it's
+        // the safer place to guarantee logging actually gets wired up.
+        if (!logUrl.isNullOrBlank() && !token.isNullOrBlank()) {
+            RemoteLog.init(context, logUrl, token)
+        }
+        RemoteLog.log(context, "onProfileProvisioningComplete fired")
 
         if (token.isNullOrBlank() || callbackUrl.isNullOrBlank()) {
             Log.w(TAG, "No enrollment token/callback URL in admin extras — nothing to report")

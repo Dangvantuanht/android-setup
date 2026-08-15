@@ -16,11 +16,13 @@ export function buildProvisioningPayload(session: EnrollmentSession): Record<str
     `${config.publicBaseUrl}/download/dpc.apk?token=${session.token}`;
   const callbackUrl = `${config.publicBaseUrl}/api/provisioning/callback`;
   const heartbeatUrl = `${config.publicBaseUrl}/api/provisioning/heartbeat`;
+  const logUrl = `${config.publicBaseUrl}/api/provisioning/log`;
 
   const adminExtras: Record<string, string> = {
     enrollment_token: session.token,
     callback_url: callbackUrl,
     heartbeat_url: heartbeatUrl,
+    log_url: logUrl,
   };
   if (config.helperApp.apkDownloadUrl) {
     adminExtras.helper_apk_url = config.helperApp.apkDownloadUrl;

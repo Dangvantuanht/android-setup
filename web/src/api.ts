@@ -8,6 +8,7 @@ import type {
   TargetApp,
   AuditLog,
   QrUsage,
+  DeviceLog,
 } from "./types";
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
@@ -72,6 +73,7 @@ export const api = {
       body: JSON.stringify({ ids }),
     }),
   modelReliability: () => request<ModelReliabilityRow[]>("/api/sessions/reports/model-reliability"),
+  getSessionLogs: (id: string) => request<DeviceLog[]>(`/api/sessions/${id}/logs`),
 
   listWifiProfiles: () => request<WifiProfile[]>("/api/wifi-profiles"),
   createWifiProfile: (input: { label: string; ssid: string; password?: string; securityType?: string }) =>

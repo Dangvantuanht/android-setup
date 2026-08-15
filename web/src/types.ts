@@ -7,6 +7,14 @@ export type EnrollmentEvent = {
   createdAt: string;
 };
 
+export type DeviceLog = {
+  id: string;
+  source: string;
+  level: string;
+  message: string;
+  createdAt: string;
+};
+
 export type EnrollmentSession = {
   id: string;
   status: SessionStatus;

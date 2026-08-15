@@ -96,9 +96,31 @@ model ManualClaimCode {
   claimedAt DateTime?
 
   gmailAccounts GmailAccount[]
+  deviceLogs    DeviceLog[]
 
   @@index([status])
   @@index([expiresAt])
+}
+
+// Remote log lines from dpc-app (provisioning) and helper-app (Google
+// sign-in / app install automation) — lets staff see exactly where a device
+// got stuck without needing physical USB/adb access, which is often
+// unavailable (screen frozen, debugging never authorized, etc). Best-effort:
+// devices send these fire-and-forget, failures here never block or affect
+// the actual provisioning/automation flow.
+model DeviceLog {
+  id          String   @id @default(cuid())
+  sessionId   String?
+  session     EnrollmentSession? @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  claimCodeId String?
+  claimCode   ManualClaimCode?   @relation(fields: [claimCodeId], references: [id], onDelete: Cascade)
+  source      String   // "dpc" | "helper"
+  level       String   @default("info")
+  message     String
+  createdAt   DateTime @default(now())
+
+  @@index([sessionId])
+  @@index([claimCodeId])
 }
 
 // Server-managed list of apps the helper app installs after Google sign-in —
@@ -142,6 +164,7 @@ model EnrollmentSession {
 
   events EnrollmentEvent[]
   gmailAccounts GmailAccount[]
+  deviceLogs DeviceLog[]
 
   @@index([status])
   @@index([expiresAt])

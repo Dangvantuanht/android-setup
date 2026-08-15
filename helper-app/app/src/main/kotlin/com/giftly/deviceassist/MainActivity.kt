@@ -241,7 +241,10 @@ class MainActivity : AppCompatActivity() {
             identity.first,
             identity.second,
             selectedApps,
-            onLog = { line -> runOnUiThread { appendLog(line) } },
+            onLog = { line ->
+                runOnUiThread { appendLog(line) }
+                ApiClient.sendLog(identity.first, identity.second, line)
+            },
             onDone = { outcome ->
                 runOnUiThread {
                     when (outcome) {

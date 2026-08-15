@@ -12,6 +12,7 @@ import { sessionEvents } from "../services/eventBus.js";
 import { requireAuth } from "../middleware/auth.middleware.js";
 import { prisma } from "../db/prisma.js";
 import { getQrUsage } from "../services/user.service.js";
+import { listDeviceLogsForSession } from "../services/deviceLog.service.js";
 
 export const sessionsRouter = Router();
 sessionsRouter.use(requireAuth);
@@ -118,6 +119,15 @@ sessionsRouter.get("/:id", async (req, res) => {
     return;
   }
   res.json(session);
+});
+
+sessionsRouter.get("/:id/logs", async (req, res) => {
+  const session = await prisma.enrollmentSession.findUnique({ where: { id: req.params.id } });
+  if (!session || !ownsSession(req, session)) {
+    res.status(404).json({ error: "session not found" });
+    return;
+  }
+  res.json(await listDeviceLogsForSession(req.params.id));
 });
 
 sessionsRouter.get("/:id/qr.png", async (req, res) => {

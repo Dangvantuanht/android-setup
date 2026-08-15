@@ -359,6 +359,48 @@ button:disabled {
   color: #9ca3af;
 }
 
+.log-row td {
+  white-space: normal;
+  background: #0b1220;
+  padding: 0.75rem 1rem;
+}
+
+.device-log-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  max-height: 320px;
+  overflow-y: auto;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.78rem;
+}
+
+.device-log-line {
+  display: flex;
+  gap: 0.5rem;
+  color: #d1d5db;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.device-log-line .log-time {
+  color: #6b7280;
+  flex-shrink: 0;
+}
+
+.device-log-line .log-source {
+  color: #60a5fa;
+  flex-shrink: 0;
+}
+
+.device-log-line.log-warn .log-message {
+  color: #fbbf24;
+}
+
+.device-log-line.log-error .log-message {
+  color: #f87171;
+}
+
 .users-page {
   display: flex;
   flex-direction: column;

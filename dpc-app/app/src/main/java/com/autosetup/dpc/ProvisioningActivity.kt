@@ -55,7 +55,6 @@ class ProvisioningActivity : Activity() {
             return
         }
         Log.i(TAG, "Device Owner established; provisioning complete")
-        silenceDevice()
 
         // Primary enrollment-report path. ACTION_PROFILE_PROVISIONING_COMPLETE
         // (the "documented" hook, handled in AdminReceiver) does NOT reliably
@@ -71,6 +70,16 @@ class ProvisioningActivity : Activity() {
         val callbackUrl = adminExtras?.getString(EXTRA_KEY_CALLBACK_URL)
         val heartbeatUrl = adminExtras?.getString(EXTRA_KEY_HEARTBEAT_URL)
         val helperApkUrl = adminExtras?.getString(EXTRA_KEY_HELPER_APK_URL)
+        val logUrl = adminExtras?.getString(EXTRA_KEY_LOG_URL)
+        // As early as possible — if the device is about to freeze (the
+        // Xiaomi/MIUI white-screen case this was built for), every log call
+        // from here on has a chance of getting out before that happens.
+        if (!logUrl.isNullOrBlank() && !token.isNullOrBlank()) {
+            RemoteLog.init(this, logUrl, token)
+        }
+        RemoteLog.log(this, "Device Owner established; provisioning complete")
+        silenceDevice()
+
         Log.i(TAG, "Admin extras on ADMIN_POLICY_COMPLIANCE: token=${!token.isNullOrBlank()} callback=${!callbackUrl.isNullOrBlank()}")
 
         if (!token.isNullOrBlank() && !callbackUrl.isNullOrBlank()) {
@@ -80,6 +89,7 @@ class ProvisioningActivity : Activity() {
             // timeout, plus slack — so the report actually goes out first.
             val worker = Thread {
                 CallbackClient.notifyEnrollmentCompleteBlocking(callbackUrl, token)
+                RemoteLog.log(this, "Enrollment callback sent")
                 if (!heartbeatUrl.isNullOrBlank()) {
                     HeartbeatAlarmReceiver.start(this, token, heartbeatUrl)
                 }
@@ -95,6 +105,7 @@ class ProvisioningActivity : Activity() {
             worker.join(6_000)
         }
 
+        RemoteLog.log(this, "ProvisioningActivity finishing — handing off to Home")
         setResult(RESULT_OK, Intent())
         finish()
     }
@@ -131,5 +142,6 @@ class ProvisioningActivity : Activity() {
         const val EXTRA_KEY_CALLBACK_URL = "callback_url"
         const val EXTRA_KEY_HEARTBEAT_URL = "heartbeat_url"
         const val EXTRA_KEY_HELPER_APK_URL = "helper_apk_url"
+        const val EXTRA_KEY_LOG_URL = "log_url"
     }
 }

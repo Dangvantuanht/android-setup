@@ -68,6 +68,26 @@ object ApiClient {
         }
     }
 
+    // Fire-and-forget on a background thread — called from every log() line
+    // during the automation loop, must never add latency or risk blocking
+    // the AccessibilityService's click loop. Lets staff see exactly where
+    // the automation got stuck without needing physical adb access (screen
+    // frozen, debugging never authorized, etc).
+    fun sendLog(kind: String, value: String, message: String, level: String = "info") {
+        Thread {
+            try {
+                val body = identityJson(kind, value).apply {
+                    put("source", "helper")
+                    put("level", level)
+                    put("message", message)
+                }.toString()
+                post("$BASE_URL/api/provisioning/log", body)
+            } catch (t: Throwable) {
+                Log.w(TAG, "log-send error (non-fatal): ${t.message}")
+            }
+        }.start()
+    }
+
     fun fetchTargetApps(): List<TargetApp> {
         return try {
             val (code, response) = get("$BASE_URL/api/provisioning/target-apps")

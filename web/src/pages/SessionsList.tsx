@@ -1,7 +1,7 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { Fragment, useEffect, useState, type FormEvent } from "react";
 import { api } from "../api";
 import { useAuth } from "../AuthContext";
-import type { EnrollmentSession, QrUsage, WifiProfile } from "../types";
+import type { DeviceLog, EnrollmentSession, QrUsage, WifiProfile } from "../types";
 
 const STATUS_LABEL: Record<string, string> = {
   PENDING: "Đang chờ",
@@ -65,6 +65,23 @@ export function SessionsList() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [batchIds, setBatchIds] = useState<string[]>([]);
   const [qrUsage, setQrUsage] = useState<QrUsage | null>(null);
+  const [expandedLogId, setExpandedLogId] = useState<string | null>(null);
+  const [logs, setLogs] = useState<DeviceLog[]>([]);
+  const [logsLoading, setLogsLoading] = useState(false);
+
+  async function onToggleLogs(id: string) {
+    if (expandedLogId === id) {
+      setExpandedLogId(null);
+      return;
+    }
+    setExpandedLogId(id);
+    setLogsLoading(true);
+    try {
+      setLogs(await api.getSessionLogs(id));
+    } finally {
+      setLogsLoading(false);
+    }
+  }
 
   async function refresh() {
     setSessions(await api.listSessions());
@@ -362,7 +379,8 @@ export function SessionsList() {
             const deletable =
               ["EXPIRED", "REVOKED", "FAILED"].includes(s.status) || (isAdmin && s.status === "ENROLLED");
             return (
-              <tr key={s.id} className={`status-${s.status.toLowerCase()}`}>
+              <Fragment key={s.id}>
+              <tr className={`status-${s.status.toLowerCase()}`}>
                 <td>
                   {deletable && (
                     <input
@@ -401,8 +419,33 @@ export function SessionsList() {
                       </button>
                     </>
                   )}
+                  <button onClick={() => onToggleLogs(s.id)}>
+                    {expandedLogId === s.id ? "Ẩn log" : "Xem log"}
+                  </button>
                 </td>
               </tr>
+              {expandedLogId === s.id && (
+                <tr className="log-row">
+                  <td colSpan={isAdmin ? 13 : 12}>
+                    {logsLoading ? (
+                      <p>Đang tải log...</p>
+                    ) : logs.length === 0 ? (
+                      <p>Chưa có log nào từ máy này.</p>
+                    ) : (
+                      <div className="device-log-panel">
+                        {logs.map((l) => (
+                          <div key={l.id} className={`device-log-line log-${l.level}`}>
+                            <span className="log-time">{new Date(l.createdAt).toLocaleTimeString()}</span>
+                            <span className="log-source">[{l.source}]</span>
+                            <span className="log-message">{l.message}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </td>
+                </tr>
+              )}
+              </Fragment>
             );
           })}
           {sessions.length === 0 && (
