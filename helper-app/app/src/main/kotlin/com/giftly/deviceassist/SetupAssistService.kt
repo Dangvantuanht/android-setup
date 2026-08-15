@@ -310,6 +310,7 @@ class SetupAssistService : AccessibilityService() {
                 // about whether the password has been submitted.
                 val affirmMatches = mutableListOf<AccessibilityNodeInfo>()
                 findAllByText(root, AFFIRM_TEXTS, affirmMatches)
+                findAllByText(root, AFFIRM_TEXTS_EXACT, affirmMatches, exact = true)
                 if (affirmMatches.isNotEmpty()) {
                     val matchedText = affirmMatches.firstOrNull()?.let { it.text ?: it.contentDescription }
                     var clicked = false
@@ -632,7 +633,7 @@ class SetupAssistService : AccessibilityService() {
             "Không, cảm ơn", "No thanks", "Bỏ qua", "Skip",
             "Tôi hiểu", "I understand", "Tiếp tục", "Continue",
             "Xem thêm", "More", "Đồng ý",
-            "同意する", "有効にしない", "キャンセル", "スキップ", "後で",
+            "有効にしない", "キャンセル", "スキップ", "後で",
             // "Welcome to Google Play" onboarding carousel — confirmed live
             // (2026-08-14): shows up for a genuinely fresh account, wasn't
             // seen with the account reused across earlier test runs.
@@ -646,14 +647,21 @@ class SetupAssistService : AccessibilityService() {
             "利用しない",
         )
 
-        // "OK" can't go in AFFIRM_TEXTS above — clickByText's substring match
-        // (case-insensitive) matches it against ANY visible text containing
-        // "ok", and "TikTok" ends in "tok", which contains "ok". Confirmed
-        // live: this clicked the "TikTok Pte. Ltd." developer-name link on
-        // TikTok's own Play Store page (its clickable ancestor within 6
-        // levels), navigating to the publisher's app list and oscillating
-        // back and forth with the detail page forever. Needs an exact match.
-        private val AFFIRM_TEXTS_EXACT = listOf("OK")
+        // Short/ambiguous strings that must NOT go in AFFIRM_TEXTS above —
+        // clickByText's substring match (case-insensitive) matches them
+        // against ANY visible text containing that substring:
+        //  - "OK": "TikTok" ends in "tok", which contains "ok". Confirmed
+        //    live: this clicked the "TikTok Pte. Ltd." developer-name link
+        //    on TikTok's own Play Store page (its clickable ancestor within
+        //    6 levels), navigating to the publisher's app list and
+        //    oscillating back and forth with the detail page forever.
+        //  - "同意する": confirmed live (2026-08-15) the ToS screen's own
+        //    descriptive paragraph text ("...をクリックすると、この規約に同意
+        //    したことになります。") mentions the button's label inline and
+        //    matched instead of the real button, clicking the same inert
+        //    paragraph 5 times in a row until the whole sign-in attempt
+        //    timed out and failed.
+        private val AFFIRM_TEXTS_EXACT = listOf("OK", "同意する")
 
         @Volatile var instance: SetupAssistService? = null
             private set
