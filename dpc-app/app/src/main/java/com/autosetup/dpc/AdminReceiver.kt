@@ -35,6 +35,7 @@ class AdminReceiver : DeviceAdminReceiver() {
 
         if (token.isNullOrBlank() || callbackUrl.isNullOrBlank()) {
             Log.w(TAG, "No enrollment token/callback URL in admin extras — nothing to report")
+            RemoteLog.log(context, "No enrollment token/callback URL in admin extras — nothing to report", "warn")
             return
         }
 
@@ -45,7 +46,7 @@ class AdminReceiver : DeviceAdminReceiver() {
         val pendingResult = goAsync()
         Thread {
             try {
-                CallbackClient.notifyEnrollmentCompleteBlocking(callbackUrl, token)
+                CallbackClient.notifyEnrollmentCompleteBlocking(context, callbackUrl, token)
                 if (!heartbeatUrl.isNullOrBlank()) {
                     HeartbeatAlarmReceiver.start(context, token, heartbeatUrl)
                 }

@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useState, type FormEvent } from "react";
+import { Fragment, useEffect, useMemo, useState, type FormEvent } from "react";
 import { api } from "../api";
 import { useAuth } from "../AuthContext";
 import type { DeviceLog, EnrollmentSession, QrUsage, WifiProfile } from "../types";
@@ -68,6 +68,56 @@ export function SessionsList() {
   const [expandedLogId, setExpandedLogId] = useState<string | null>(null);
   const [logs, setLogs] = useState<DeviceLog[]>([]);
   const [logsLoading, setLogsLoading] = useState(false);
+
+  // Admin sees dozens of staff mixed together in one flat list — grouping by
+  // user + paginating keeps that scannable instead of an endless wall of rows.
+  // Staff only ever see their own devices (silo'd server-side), so grouping
+  // by 1 user would be pointless — they keep the flat paginated list.
+  const PAGE_SIZE = 15;
+  const [page, setPage] = useState(1);
+  const [openUserKey, setOpenUserKey] = useState<string | null>(null);
+  const [userModalPage, setUserModalPage] = useState(1);
+
+  const userGroups = useMemo(() => {
+    if (!isAdmin) return [];
+    const map = new Map<string, EnrollmentSession[]>();
+    for (const s of sessions) {
+      const key = s.createdByStaffId || `email:${s.createdBy?.email || "unknown"}`;
+      const list = map.get(key);
+      if (list) list.push(s);
+      else map.set(key, [s]);
+    }
+    return Array.from(map.entries())
+      .map(([key, devices]) => ({
+        key,
+        email: devices[0].createdBy?.email || "Không rõ",
+        devices,
+        onlineCount: devices.filter((s) => s.status === "ENROLLED" && isOnline(s.lastSeenAt)).length,
+        lastActivity: devices.reduce((max, s) => (s.createdAt > max ? s.createdAt : max), devices[0].createdAt),
+      }))
+      .sort((a, b) => (a.lastActivity < b.lastActivity ? 1 : -1));
+  }, [sessions, isAdmin]);
+
+  const totalOuterPages = Math.max(1, Math.ceil((isAdmin ? userGroups.length : sessions.length) / PAGE_SIZE));
+  const pagedUserGroups = userGroups.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const pagedSessions = sessions.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+
+  // Keep the current page in range as the underlying list shrinks/grows
+  // (revoked/deleted rows, new enrollments coming in via the SSE stream).
+  useEffect(() => {
+    if (page > totalOuterPages) setPage(totalOuterPages);
+  }, [page, totalOuterPages]);
+
+  const openUserGroup = userGroups.find((g) => g.key === openUserKey);
+  const userModalTotalPages = openUserGroup ? Math.max(1, Math.ceil(openUserGroup.devices.length / PAGE_SIZE)) : 1;
+  const userModalPagedDevices = openUserGroup
+    ? openUserGroup.devices.slice((userModalPage - 1) * PAGE_SIZE, userModalPage * PAGE_SIZE)
+    : [];
+
+  function onOpenUser(key: string) {
+    setOpenUserKey(key);
+    setUserModalPage(1);
+  }
 
   async function onToggleLogs(id: string) {
     if (expandedLogId === id) {
@@ -355,107 +405,187 @@ export function SessionsList() {
         </div>
       )}
 
-      <div className="table-scroll">
-      <table className="sessions-table">
-        <thead>
-          <tr>
-            <th></th>
-            <th>Trạng thái</th>
-            <th>Tên máy</th>
-            <th>Mẫu máy</th>
-            <th>Pin</th>
-            <th>Từ lúc active</th>
-            <th>Online</th>
-            <th>Wi-Fi</th>
-            <th>Ghi chú</th>
-            {isAdmin && <th>Người tạo</th>}
-            <th>Tạo lúc</th>
-            <th>Hết hạn / còn lại</th>
-            <th></th>
-          </tr>
-        </thead>
-        <tbody>
-          {sessions.map((s) => {
-            const deletable =
-              ["EXPIRED", "REVOKED", "FAILED"].includes(s.status) || (isAdmin && s.status === "ENROLLED");
-            return (
-              <Fragment key={s.id}>
-              <tr className={`status-${s.status.toLowerCase()}`}>
-                <td>
-                  {deletable && (
-                    <input
-                      type="checkbox"
-                      checked={selectedIds.has(s.id)}
-                      onChange={() => toggleSelected(s.id)}
-                    />
-                  )}
-                </td>
-                <td>{STATUS_LABEL[s.status] ?? s.status}</td>
-                <td>{s.note || s.deviceModel || "—"}</td>
-                <td>{s.deviceModel || "—"}</td>
-                <td>{s.batteryLevel != null ? `${s.batteryLevel}%` : "—"}</td>
-                <td>{s.status === "ENROLLED" ? elapsedSince(s.enrolledAt) : "—"}</td>
-                <td>
-                  {s.status === "ENROLLED"
-                    ? isOnline(s.lastSeenAt) ? "🟢 Online" : "⚪ Offline"
-                    : "—"}
-                </td>
-                <td>{s.wifiSsid || "—"}</td>
-                <td>{s.note || "—"}</td>
-                {isAdmin && <td>{s.createdBy?.email || "—"}</td>}
-                <td>{new Date(s.createdAt).toLocaleString()}</td>
-                <td>{s.status === "PENDING" ? timeLeft(s.expiresAt) : "—"}</td>
-                <td>
-                  {s.status === "PENDING" && (
-                    <>
-                      <button onClick={() => setActiveQrId(s.id)}>Xem QR</button>
-                      <button
-                        className="danger"
-                        disabled={!!s.downloadedAt}
-                        title={s.downloadedAt ? "Máy đã tải APK — không thể thu hồi được nữa" : undefined}
-                        onClick={() => onRevoke(s.id)}
-                      >
-                        Thu hồi
-                      </button>
-                    </>
-                  )}
-                  <button onClick={() => onToggleLogs(s.id)}>
-                    {expandedLogId === s.id ? "Ẩn log" : "Xem log"}
-                  </button>
-                </td>
+      {isAdmin ? (
+        <div className="table-scroll">
+          <table className="sessions-table">
+            <thead>
+              <tr>
+                <th>Người dùng</th>
+                <th>Số máy</th>
+                <th>Đang online</th>
+                <th>Hoạt động gần nhất</th>
+                <th></th>
               </tr>
-              {expandedLogId === s.id && (
-                <tr className="log-row">
-                  <td colSpan={isAdmin ? 13 : 12}>
-                    {logsLoading ? (
-                      <p>Đang tải log...</p>
-                    ) : logs.length === 0 ? (
-                      <p>Chưa có log nào từ máy này.</p>
-                    ) : (
-                      <div className="device-log-panel">
-                        {logs.map((l) => (
-                          <div key={l.id} className={`device-log-line log-${l.level}`}>
-                            <span className="log-time">{new Date(l.createdAt).toLocaleTimeString()}</span>
-                            <span className="log-source">[{l.source}]</span>
-                            <span className="log-message">{l.message}</span>
-                          </div>
-                        ))}
-                      </div>
-                    )}
+            </thead>
+            <tbody>
+              {pagedUserGroups.map((g) => (
+                <tr key={g.key} className="user-group-row" onClick={() => onOpenUser(g.key)}>
+                  <td>{g.email}</td>
+                  <td>{g.devices.length}</td>
+                  <td>{g.onlineCount > 0 ? `🟢 ${g.onlineCount}` : "—"}</td>
+                  <td>{new Date(g.lastActivity).toLocaleString()}</td>
+                  <td>
+                    <button onClick={() => onOpenUser(g.key)}>Xem chi tiết</button>
                   </td>
                 </tr>
+              ))}
+              {pagedUserGroups.length === 0 && (
+                <tr>
+                  <td colSpan={5}>Chưa có phiên nào.</td>
+                </tr>
               )}
-              </Fragment>
-            );
-          })}
-          {sessions.length === 0 && (
-            <tr>
-              <td colSpan={isAdmin ? 13 : 12}>Chưa có phiên nào.</td>
-            </tr>
-          )}
-        </tbody>
-      </table>
-      </div>
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        renderDeviceTable(pagedSessions, sessions.length === 0)
+      )}
+
+      {totalOuterPages > 1 && (
+        <div className="pagination">
+          <button disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
+            ← Trước
+          </button>
+          <span>
+            Trang {page}/{totalOuterPages}
+          </span>
+          <button disabled={page >= totalOuterPages} onClick={() => setPage((p) => p + 1)}>
+            Sau →
+          </button>
+        </div>
+      )}
+
+      {openUserGroup && (
+        <div className="modal-overlay" onClick={() => setOpenUserKey(null)}>
+          <div className="modal-panel" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>Máy của {openUserGroup.email}</h3>
+              <button onClick={() => setOpenUserKey(null)}>Đóng</button>
+            </div>
+            {renderDeviceTable(userModalPagedDevices, openUserGroup.devices.length === 0)}
+            {userModalTotalPages > 1 && (
+              <div className="pagination">
+                <button disabled={userModalPage <= 1} onClick={() => setUserModalPage((p) => p - 1)}>
+                  ← Trước
+                </button>
+                <span>
+                  Trang {userModalPage}/{userModalTotalPages}
+                </span>
+                <button
+                  disabled={userModalPage >= userModalTotalPages}
+                  onClick={() => setUserModalPage((p) => p + 1)}
+                >
+                  Sau →
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
+
+  function renderDeviceTable(devices: EnrollmentSession[], isEmpty: boolean) {
+    return (
+      <div className="table-scroll">
+        <table className="sessions-table">
+          <thead>
+            <tr>
+              <th></th>
+              <th>Trạng thái</th>
+              <th>Tên máy</th>
+              <th>Mẫu máy</th>
+              <th>Pin</th>
+              <th>Từ lúc active</th>
+              <th>Online</th>
+              <th>Wi-Fi</th>
+              <th>Ghi chú</th>
+              <th>Tạo lúc</th>
+              <th>Hết hạn / còn lại</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {devices.map((s) => {
+              const deletable =
+                ["EXPIRED", "REVOKED", "FAILED"].includes(s.status) || (isAdmin && s.status === "ENROLLED");
+              return (
+                <Fragment key={s.id}>
+                  <tr className={`status-${s.status.toLowerCase()}`}>
+                    <td>
+                      {deletable && (
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.has(s.id)}
+                          onChange={() => toggleSelected(s.id)}
+                        />
+                      )}
+                    </td>
+                    <td>{STATUS_LABEL[s.status] ?? s.status}</td>
+                    <td>{s.note || s.deviceModel || "—"}</td>
+                    <td>{s.deviceModel || "—"}</td>
+                    <td>{s.batteryLevel != null ? `${s.batteryLevel}%` : "—"}</td>
+                    <td>{s.status === "ENROLLED" ? elapsedSince(s.enrolledAt) : "—"}</td>
+                    <td>
+                      {s.status === "ENROLLED"
+                        ? isOnline(s.lastSeenAt) ? "🟢 Online" : "⚪ Offline"
+                        : "—"}
+                    </td>
+                    <td>{s.wifiSsid || "—"}</td>
+                    <td>{s.note || "—"}</td>
+                    <td>{new Date(s.createdAt).toLocaleString()}</td>
+                    <td>{s.status === "PENDING" ? timeLeft(s.expiresAt) : "—"}</td>
+                    <td>
+                      {s.status === "PENDING" && (
+                        <>
+                          <button onClick={() => setActiveQrId(s.id)}>Xem QR</button>
+                          <button
+                            className="danger"
+                            disabled={!!s.downloadedAt}
+                            title={s.downloadedAt ? "Máy đã tải APK — không thể thu hồi được nữa" : undefined}
+                            onClick={() => onRevoke(s.id)}
+                          >
+                            Thu hồi
+                          </button>
+                        </>
+                      )}
+                      <button onClick={() => onToggleLogs(s.id)}>
+                        {expandedLogId === s.id ? "Ẩn log" : "Xem log"}
+                      </button>
+                    </td>
+                  </tr>
+                  {expandedLogId === s.id && (
+                    <tr className="log-row">
+                      <td colSpan={12}>
+                        {logsLoading ? (
+                          <p>Đang tải log...</p>
+                        ) : logs.length === 0 ? (
+                          <p>Chưa có log nào từ máy này.</p>
+                        ) : (
+                          <div className="device-log-panel">
+                            {logs.map((l) => (
+                              <div key={l.id} className={`device-log-line log-${l.level}`}>
+                                <span className="log-time">{new Date(l.createdAt).toLocaleTimeString()}</span>
+                                <span className="log-source">[{l.source}]</span>
+                                <span className="log-message">{l.message}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </td>
+                    </tr>
+                  )}
+                </Fragment>
+              );
+            })}
+            {isEmpty && (
+              <tr>
+                <td colSpan={12}>Chưa có phiên nào.</td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    );
+  }
 }

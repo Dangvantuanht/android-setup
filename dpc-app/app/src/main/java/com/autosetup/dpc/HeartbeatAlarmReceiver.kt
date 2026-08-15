@@ -27,7 +27,7 @@ class HeartbeatAlarmReceiver : BroadcastReceiver() {
         Thread {
             try {
                 val battery = readBatteryLevel(context)
-                CallbackClient.sendHeartbeatBlocking(heartbeatUrl, token, battery)
+                CallbackClient.sendHeartbeatBlocking(context, heartbeatUrl, token, battery)
             } finally {
                 schedule(context, INTERVAL_MS)
                 pendingResult.finish()

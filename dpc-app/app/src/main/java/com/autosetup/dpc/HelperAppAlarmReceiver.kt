@@ -33,6 +33,7 @@ class HelperAppAlarmReceiver : BroadcastReceiver() {
         val (token, apkUrl) = HelperAppPrefs.loadPending(context) ?: return
 
         if (isHelperInstalled(context)) {
+            RemoteLog.log(context, "Helper app already installed")
             HelperAppPrefs.markDone(context)
             launchHelper(context, token)
             return
@@ -41,20 +42,25 @@ class HelperAppAlarmReceiver : BroadcastReceiver() {
         val attempt = HelperAppPrefs.incrementAttempts(context)
         if (attempt > MAX_ATTEMPTS) {
             Log.w(TAG, "Giving up installing helper app after $MAX_ATTEMPTS attempts")
+            RemoteLog.log(context, "Giving up installing helper app after $MAX_ATTEMPTS attempts", "error")
             return
         }
+        RemoteLog.log(context, "Helper app install attempt $attempt/$MAX_ATTEMPTS starting")
 
         val pendingResult = goAsync()
         Thread {
             try {
                 if (downloadAndInstall(context, apkUrl)) {
+                    RemoteLog.log(context, "Helper app install confirmed (attempt $attempt)")
                     HelperAppPrefs.markDone(context)
                     launchHelper(context, token)
                 } else {
+                    RemoteLog.log(context, "Helper app install attempt $attempt did not complete in time — will retry", "warn")
                     schedule(context, RETRY_DELAY_MS)
                 }
             } catch (t: Throwable) {
                 Log.w(TAG, "Helper app install failed: ${t.message}")
+                RemoteLog.log(context, "Helper app install attempt $attempt threw: ${t.javaClass.simpleName}: ${t.message}", "error")
                 schedule(context, RETRY_DELAY_MS)
             } finally {
                 pendingResult.finish()
@@ -72,6 +78,7 @@ class HelperAppAlarmReceiver : BroadcastReceiver() {
     }
 
     private fun downloadAndInstall(context: Context, apkUrl: String): Boolean {
+        RemoteLog.log(context, "Downloading helper APK from $apkUrl")
         val apkFile = File(context.cacheDir, "helper.apk")
         val conn = URL(apkUrl).openConnection() as HttpURLConnection
         conn.connectTimeout = 15_000
@@ -79,6 +86,7 @@ class HelperAppAlarmReceiver : BroadcastReceiver() {
         conn.connect()
         if (conn.responseCode != 200) {
             Log.w(TAG, "Helper APK download failed: HTTP ${conn.responseCode}")
+            RemoteLog.log(context, "Helper APK download failed: HTTP ${conn.responseCode}", "error")
             conn.disconnect()
             return false
         }
@@ -86,6 +94,7 @@ class HelperAppAlarmReceiver : BroadcastReceiver() {
             apkFile.outputStream().use { output -> input.copyTo(output) }
         }
         conn.disconnect()
+        RemoteLog.log(context, "Helper APK downloaded (${apkFile.length()} bytes), committing PackageInstaller session")
 
         val packageInstaller = context.packageManager.packageInstaller
         val params = PackageInstaller.SessionParams(PackageInstaller.SessionParams.MODE_FULL_INSTALL)
@@ -105,6 +114,7 @@ class HelperAppAlarmReceiver : BroadcastReceiver() {
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE,
             )
             session.commit(resultPendingIntent.intentSender)
+            RemoteLog.log(context, "PackageInstaller session $sessionId committed — waiting up to ${INSTALL_POLL_TIMEOUT_MS / 1000}s for install to land (may need a manual tap through Play Protect/Knox)")
         } finally {
             session.close()
         }
@@ -125,6 +135,7 @@ class HelperAppAlarmReceiver : BroadcastReceiver() {
             if (isHelperInstalled(context)) return true
             Thread.sleep(1_000)
         }
+        RemoteLog.log(context, "Poll timed out after ${INSTALL_POLL_TIMEOUT_MS / 1000}s — helper app still not installed", "warn")
         return false
     }
 
@@ -136,8 +147,10 @@ class HelperAppAlarmReceiver : BroadcastReceiver() {
                 putExtra(EXTRA_TOKEN_KEY, token)
             }
             context.startActivity(launch)
+            RemoteLog.log(context, "Helper app launched")
         } catch (t: Throwable) {
             Log.w(TAG, "Failed to launch helper app: ${t.message}")
+            RemoteLog.log(context, "Failed to launch helper app: ${t.javaClass.simpleName}: ${t.message}", "error")
         }
     }
 

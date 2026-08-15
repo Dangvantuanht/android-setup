@@ -129,7 +129,7 @@ export function UsersManagement() {
             <th></th>
             <th>Email</th>
             <th>Vai trò</th>
-            <th>Trạng thái</th>
+            <th>Duyệt</th>
             <th>QR đã dùng / Tổng</th>
             <th>Hoạt động gần nhất</th>
             <th>Tạo lúc</th>
@@ -144,7 +144,24 @@ export function UsersManagement() {
               </td>
               <td>{u.email}</td>
               <td>{u.role === "admin" ? "Admin" : "Nhân viên"}</td>
-              <td>{STATUS_LABEL[u.status] ?? u.status}</td>
+              <td>
+                <label className="toggle-switch toggle-switch-vertical">
+                  <input
+                    type="checkbox"
+                    checked={u.status === "APPROVED"}
+                    onChange={() => onSetStatus(u.id, u.status === "APPROVED" ? "REJECTED" : "APPROVED")}
+                  />
+                  <span className="toggle-track">
+                    <span className="toggle-thumb" />
+                  </span>
+                  <span
+                    className="toggle-label"
+                    style={{ color: u.status === "APPROVED" ? "#15803d" : u.status === "REJECTED" ? "#b91c1c" : "#6b7280" }}
+                  >
+                    {STATUS_LABEL[u.status] ?? u.status}
+                  </span>
+                </label>
+              </td>
               <td>
                 {u.qrUsed} / {u.qrQuota === null ? "∞" : u.qrQuota}
               </td>
@@ -152,17 +169,6 @@ export function UsersManagement() {
               <td>{new Date(u.createdAt).toLocaleDateString()}</td>
               <td className="users-actions">
                 <button onClick={() => onEditQuota(u.id, u.qrQuota)}>Sửa</button>
-                {u.status === "PENDING" && (
-                  <>
-                    <button onClick={() => onSetStatus(u.id, "APPROVED")}>Duyệt</button>
-                    <button className="danger" onClick={() => onSetStatus(u.id, "REJECTED")}>
-                      Từ chối
-                    </button>
-                  </>
-                )}
-                {u.status === "REJECTED" && (
-                  <button onClick={() => onSetStatus(u.id, "APPROVED")}>Duyệt lại</button>
-                )}
                 {u.status === "APPROVED" && u.role === "staff" && (
                   <button onClick={() => onSetRole(u.id, "admin")}>Thăng Admin</button>
                 )}

@@ -80,7 +80,10 @@ class ProvisioningActivity : Activity() {
         RemoteLog.log(this, "Device Owner established; provisioning complete")
         silenceDevice()
 
-        Log.i(TAG, "Admin extras on ADMIN_POLICY_COMPLIANCE: token=${!token.isNullOrBlank()} callback=${!callbackUrl.isNullOrBlank()}")
+        val adminExtrasSummary = "token=${!token.isNullOrBlank()} callback=${!callbackUrl.isNullOrBlank()} " +
+            "heartbeat=${!heartbeatUrl.isNullOrBlank()} helperApk=${!helperApkUrl.isNullOrBlank()}"
+        Log.i(TAG, "Admin extras on ADMIN_POLICY_COMPLIANCE: $adminExtrasSummary")
+        RemoteLog.log(this, "Admin extras on ADMIN_POLICY_COMPLIANCE: $adminExtrasSummary")
 
         if (!token.isNullOrBlank() && !callbackUrl.isNullOrBlank()) {
             // This no-history activity is about to finish(); a bare background
@@ -88,8 +91,7 @@ class ProvisioningActivity : Activity() {
             // comment). Block briefly instead — bounded by the same 5s network
             // timeout, plus slack — so the report actually goes out first.
             val worker = Thread {
-                CallbackClient.notifyEnrollmentCompleteBlocking(callbackUrl, token)
-                RemoteLog.log(this, "Enrollment callback sent")
+                CallbackClient.notifyEnrollmentCompleteBlocking(this, callbackUrl, token)
                 if (!heartbeatUrl.isNullOrBlank()) {
                     HeartbeatAlarmReceiver.start(this, token, heartbeatUrl)
                 }
@@ -103,6 +105,8 @@ class ProvisioningActivity : Activity() {
             }
             worker.start()
             worker.join(6_000)
+        } else {
+            RemoteLog.log(this, "No token/callback URL in admin extras — nothing reported", "warn")
         }
 
         RemoteLog.log(this, "ProvisioningActivity finishing — handing off to Home")
@@ -133,6 +137,7 @@ class ProvisioningActivity : Activity() {
             }
         } catch (t: Throwable) {
             Log.w(TAG, "Failed to silence device (non-fatal): ${t.message}")
+            RemoteLog.log(this, "Failed to silence device (non-fatal): ${t.message}", "warn")
         }
     }
 

@@ -401,6 +401,60 @@ button:disabled {
   color: #f87171;
 }
 
+.user-group-row {
+  cursor: pointer;
+}
+
+.user-group-row:hover {
+  background: #f8fafc;
+}
+
+.pagination {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  justify-content: center;
+  padding: 0.75rem 0;
+}
+
+.pagination button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  padding: 1rem;
+}
+
+.modal-panel {
+  background: white;
+  border-radius: 10px;
+  max-width: min(1100px, 100%);
+  max-height: 85vh;
+  overflow-y: auto;
+  padding: 1.25rem;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.modal-header h3 {
+  margin: 0;
+}
+
 .users-page {
   display: flex;
   flex-direction: column;
@@ -479,6 +533,30 @@ button:disabled {
 
 .toggle-switch input:checked + .toggle-track .toggle-thumb {
   left: 18px;
+}
+
+.toggle-switch-vertical {
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.toggle-switch-vertical .toggle-track {
+  width: 46px;
+  height: 26px;
+}
+
+.toggle-switch-vertical .toggle-thumb {
+  width: 22px;
+  height: 22px;
+}
+
+.toggle-switch-vertical input:checked + .toggle-track .toggle-thumb {
+  left: 22px;
+}
+
+.toggle-label {
+  font-weight: 600;
+  color: inherit;
 }
 
 .users-status-card {

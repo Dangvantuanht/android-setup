@@ -18,9 +18,11 @@ import android.util.Log
  */
 class TokenQueryReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
+        RemoteLog.log(context, "Helper app queried for its token")
         val token = HelperAppPrefs.peekToken(context)
         if (token.isNullOrBlank()) {
             Log.w(TAG, "Helper app asked for a token but none is on file")
+            RemoteLog.log(context, "Helper app asked for a token but none is on file", "warn")
             return
         }
         val reply = Intent().apply {
@@ -29,8 +31,10 @@ class TokenQueryReceiver : BroadcastReceiver() {
         }
         try {
             context.sendBroadcast(reply)
+            RemoteLog.log(context, "Replied to helper app with token")
         } catch (t: Throwable) {
             Log.w(TAG, "Failed to reply with token: ${t.message}")
+            RemoteLog.log(context, "Failed to reply with token: ${t.javaClass.simpleName}: ${t.message}", "error")
         }
     }
 
